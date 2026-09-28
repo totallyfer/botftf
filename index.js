@@ -205,102 +205,165 @@ function drawRoundImage(ctx, img, x, y, size) {
 }
 
 // ============================================================
-// --- GERADOR DE IMAGEM: MONEYINFO (ECONOMIA) ---
+// --- GERADOR DE IMAGEM: MONEYINFO DETALHADO COM ÍCONES ---
 // ============================================================
 async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
-    const canvas = createCanvas(800, 420);
+    const canvas = createCanvas(900, 480);
     const ctx = canvas.getContext('2d');
     const selectedColor = COLOR_MAP[dbSettings.tabelaCor] || '#f1c40f';
 
-    // Fundo principal com cor temática
+    // 1. Fundo com gradiente/cor temática superior sofisticada
     ctx.fillStyle = selectedColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Camada escura translúcida de fundo
-    ctx.fillStyle = 'rgba(15, 15, 18, 0.88)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvas.width, 160);
 
-    // Título Superior
+    ctx.fillStyle = '#121318';
+    ctx.fillRect(0, 150, canvas.width, canvas.height - 150);
+
+    // Linha decorativa de destaque
     ctx.fillStyle = selectedColor;
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('BANCO CENTRAL DA CIDADE', canvas.width / 2, 45);
+    ctx.fillRect(0, 146, canvas.width, 4);
 
+    // Cabeçalho / Títulos
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 26px sans-serif';
-    ctx.fillText('INFORMAÇÕES FINANCEIRAS', canvas.width / 2, 75);
+    ctx.font = 'bold 28px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('PAINEL FINANCEIRO', 180, 70);
 
-    // Avatar do utilizador
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Extrato de contas, carteira e património da cidade', 180, 95);
+
+    // Avatar com moldura elegante
     let avatarImg = null;
     try {
         const avatarURL = member.displayAvatarURL ? member.displayAvatarURL({ extension: 'png', size: 256 }) : `https://cdn.discordapp.com/embed/avatars/0.png`;
         avatarImg = await loadImage(avatarURL);
     } catch {}
 
+    // Moldura do avatar
+    ctx.fillStyle = selectedColor;
+    ctx.beginPath();
+    ctx.arc(100, 80, 52, 0, Math.PI * 2);
+    ctx.fill();
+
     if (avatarImg) {
-        drawRoundImage(ctx, avatarImg, 65, 120, 110);
+        drawRoundImage(ctx, avatarImg, 50, 30, 100);
     } else {
         ctx.fillStyle = '#2c2d30';
         ctx.beginPath();
-        ctx.arc(120, 175, 55, 0, Math.PI * 2);
+        ctx.arc(100, 80, 48, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // Nome do cidadão ao lado do avatar
-    ctx.textAlign = 'left';
+    // Identificação do Cidadão no topo direito
+    ctx.textAlign = 'right';
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px sans-serif';
+    ctx.font = 'bold 18px sans-serif';
     const username = member.displayName || member.username || 'Cidadão';
-    ctx.fillText(username.slice(0, 22), 195, 160);
+    ctx.fillText(`@${username.slice(0, 20)}`, canvas.width - 50, 70);
 
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = '13px sans-serif';
-    ctx.fillText('Conta verificada na cidade 🏙️', 195, 185);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('STATUS: Cidadão Ativo 🏙️', canvas.width - 50, 92);
 
-    // Caixas de Valores (Carteira, Banco, Total)
-    const boxY = 225;
-    const boxW = 215;
-    const boxH = 135;
-
+    // Dados de Valores
     const wallet = userObj.wallet || 0;
     const bank = userObj.bank || 0;
     const total = wallet + bank;
 
-    // 1. Caixa Carteira
-    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
-    roundRect(ctx, 65, boxY, boxW, boxH, 12, true, false);
+    const cardY = 195;
+    const cardW = 245;
+    const cardH = 230;
+    const cardSpacing = 30;
+    const startX = 50;
+
+    // --- CARTÃO 1: CARTEIRA ---
+    ctx.fillStyle = '#1b1d24';
+    roundRect(ctx, startX, cardY, cardW, cardH, 16, true, false);
+    ctx.strokeStyle = '#2ecc71';
+    ctx.lineWidth = 2;
+    roundRect(ctx, startX, cardY, cardW, cardH, 16, false, true);
+
+    // Ícone Carteira (desenhado à mão em Canvas)
     ctx.fillStyle = '#2ecc71';
-    ctx.fillRect(65, boxY, 5, boxH);
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText('CARTEIRA', 85, boxY + 35);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText(`🪙 ${wallet.toLocaleString()}`, 85, boxY + 85);
+    roundRect(ctx, startX + 25, cardY + 25, 45, 45, 10, true, false);
+    ctx.fillStyle = '#1b1d24';
+    ctx.fillRect(startX + 35, cardY + 40, 25, 22);
+    ctx.fillStyle = '#2ecc71';
+    ctx.fillRect(startX + 45, cardY + 48, 8, 6); // fecho da carteira
 
-    // 2. Caixa Banco
-    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
-    roundRect(ctx, 292, boxY, boxW, boxH, 12, true, false);
+    ctx.fillStyle = '#a0a2ab';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('DINHEIRO EM MÃOS', startX + 25, cardY + 100);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('CARTEIRA', startX + 25, cardY + 118);
+
+    ctx.fillStyle = '#2ecc71';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`🪙 ${wallet.toLocaleString()}`, startX + 25, cardY + 175);
+
+    // --- CARTÃO 2: BANCO ---
+    const x2 = startX + cardW + cardSpacing;
+    ctx.fillStyle = '#1b1d24';
+    roundRect(ctx, x2, cardY, cardW, cardH, 16, true, false);
+    ctx.strokeStyle = '#3498db';
+    ctx.lineWidth = 2;
+    roundRect(ctx, x2, cardY, cardW, cardH, 16, false, true);
+
+    // Ícone Banco (Edifício de colunas)
     ctx.fillStyle = '#3498db';
-    ctx.fillRect(292, boxY, 5, boxH);
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText('BANCO', 312, boxY + 35);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText(`🏦 ${bank.toLocaleString()}`, 312, boxY + 85);
+    roundRect(ctx, x2 + 25, cardY + 25, 45, 45, 10, true, false);
+    ctx.fillStyle = '#1b1d24';
+    // Desenhar colunas do banco
+    ctx.fillRect(x2 + 35, cardY + 40, 4, 18);
+    ctx.fillRect(x2 + 45, cardY + 40, 4, 18);
+    ctx.fillRect(x2 + 55, cardY + 40, 4, 18);
 
-    // 3. Caixa Património Total
-    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
-    roundRect(ctx, 519, boxY, boxW, boxH, 12, true, false);
+    ctx.fillStyle = '#a0a2ab';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('PROTEGIDO NO COFRE', x2 + 25, cardY + 100);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('BANCO CENTRAL', x2 + 25, cardY + 118);
+
+    ctx.fillStyle = '#3498db';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`🏦 ${bank.toLocaleString()}`, x2 + 25, cardY + 175);
+
+    // --- CARTÃO 3: PATRIMÓNIO TOTAL ---
+    const x3 = x2 + cardW + cardSpacing;
+    ctx.fillStyle = '#1b1d24';
+    roundRect(ctx, x3, cardY, cardW, cardH, 16, true, false);
+    ctx.strokeStyle = selectedColor;
+    ctx.lineWidth = 2;
+    roundRect(ctx, x3, cardY, cardW, cardH, 16, false, true);
+
+    // Ícone Património (Símbolo de Gráfico / Coroa financeira)
     ctx.fillStyle = selectedColor;
-    ctx.fillRect(519, boxY, 5, boxH);
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText('PATRIMÓNIO TOTAL', 539, boxY + 35);
+    roundRect(ctx, x3 + 25, cardY + 25, 45, 45, 10, true, false);
+    ctx.fillStyle = '#1b1d24';
+    // Barras de gráfico ascendente
+    ctx.fillRect(x3 + 34, cardY + 52, 6, 12);
+    ctx.fillRect(x3 + 44, cardY + 45, 6, 19);
+    ctx.fillRect(x3 + 54, cardY + 37, 6, 27);
+
+    ctx.fillStyle = '#a0a2ab';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('SOMA GERAL', x3 + 25, cardY + 100);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('PATRIMÓNIO TOTAL', x3 + 25, cardY + 118);
+
     ctx.fillStyle = '#f1c40f';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText(`💰 ${total.toLocaleString()}`, 539, boxY + 85);
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`💰 ${total.toLocaleString()}`, x3 + 25, cardY + 175);
 
     return canvas.toBuffer('image/png');
 }
@@ -732,7 +795,7 @@ client.once('ready', async () => {
             .setDescription('Resgata sua recompensa diária de moedas'),
         new SlashCommandBuilder()
             .setName('moneyinfo')
-            .setDescription('Mostra o saldo na carteira, banco e informações financeiras em imagem')
+            .setDescription('Mostra o saldo na carteira, banco e informações financeiras em imagem detalhada')
             .addUserOption(option => option.setName('usuario').setDescription('Ver informações de outro cidadão').setRequired(false)),
         new SlashCommandBuilder()
             .setName('dep')
