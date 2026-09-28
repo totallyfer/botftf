@@ -1600,7 +1600,7 @@ client.on('interactionCreate', async interaction => {
 
                 const selectMenu = new StringSelectMenuBuilder()
                     .setCustomId('abrir_ticket_select')
-                    .setPlaceholder('📌 Selecione o assunto do atendimento...')
+                    .setPlaceholder('Abrir Ticket')
                     .addOptions(cfg.opcoes.map(o => ({
                         label: o.label,
                         value: o.value,
