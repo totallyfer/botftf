@@ -2,7 +2,7 @@ const {
     Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, 
     EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, 
     StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, 
-    ChannelCategoryDMPermission, ChannelType, PermissionFlagsBits, AttachmentBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder 
+    ChannelType, PermissionFlagsBits, AttachmentBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder 
 } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
@@ -189,9 +189,6 @@ const cidadeCooldowns = {
     daily: new Map(),
     rob: new Map()
 };
-
-// Sessão temporária para configuração de painéis de ticket via chat
-const ticketSetupSession = new Map();
 
 // ============================================================
 // --- FUNÇÃO PARA ATUALIZAR CARGOS DO PÓDIO (1V1) ---
@@ -818,7 +815,11 @@ client.once('ready', async () => {
             .setName('painel')
             .setDescription('Painel de controlo administrativo (1v1, Cidade ou Ticket)')
             .addSubcommand(sub => sub.setName('cidade').setDescription('Abre o painel administrativo da cidade'))
-            .addSubcommand(sub => sub.setName('ticket').setDescription('Abre o painel administrativo de tickets'))
+            .addSubcommand(sub => 
+                sub.setName('ticket')
+                   .setDescription('Abre o painel administrativo de tickets')
+                   .addAttachmentOption(option => option.setName('banner').setDescription('Anexe uma imagem para ser o banner do ticket (Opcional)').setRequired(false))
+            )
             .setDMPermission(false),
         new SlashCommandBuilder()
             .setName('reset')
@@ -1004,6 +1005,13 @@ client.on('interactionCreate', async interaction => {
                     return await interaction.reply({ content: '❌ Apenas administradores ou moderadores podem aceder ao painel de tickets!', ephemeral: true });
                 }
 
+                // Captura banner caso tenha sido anexado no comando
+                const bannerAttachment = interaction.options.getAttachment('banner');
+                if (bannerAttachment) {
+                    ticketGuildData.config.bannerUrl = bannerAttachment.url;
+                    saveTicketDB(ticketDb);
+                }
+
                 const cfg = ticketGuildData.config;
                 const staffRoleText = cfg.cargoStaff ? `<@&${cfg.cargoStaff}>` : '`Não definido`';
                 const channelText = cfg.canalEnvio ? `<#${cfg.canalEnvio}>` : '`Não definido`';
@@ -1011,7 +1019,7 @@ client.on('interactionCreate', async interaction => {
                 const embed = new EmbedBuilder()
                     .setTitle('🎫 Painel Administrativo - Sistema de Tickets')
                     .setDescription(
-                        `Configure e envie o painel de atendimento robusto (CV2) para o servidor.\n\n` +
+                        `Configure e envie o painel de atendimento em embed para o servidor.\n\n` +
                         `📌 **Título Atual:** \`${cfg.titulo}\`\n` +
                         `📝 **Descrição:** \`${cfg.descricao}\`\n` +
                         `🛡️ **Cargo da Staff:** ${staffRoleText}\n` +
@@ -1022,17 +1030,20 @@ client.on('interactionCreate', async interaction => {
                     .setColor(0x3498DB)
                     .setTimestamp();
 
+                if (cfg.bannerUrl) {
+                    embed.setImage(cfg.bannerUrl);
+                }
+
                 const row1 = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('ticket_cfg_texto').setLabel('Editar Textos').setStyle(ButtonStyle.Primary).setEmoji('✏️'),
                     new ButtonBuilder().setCustomId('ticket_cfg_cargo').setLabel('Definir Cargo Staff').setStyle(ButtonStyle.Secondary).setEmoji('🛡️'),
-                    new ButtonBuilder().setCustomId('ticket_cfg_canal').setLabel('Definir Canal').setStyle(ButtonStyle.Secondary).setEmoji('📢'),
-                    new ButtonBuilder().setCustomId('ticket_cfg_banner').setLabel('Definir Banner').setStyle(ButtonStyle.Secondary).setEmoji('🖼️')
+                    new ButtonBuilder().setCustomId('ticket_cfg_canal').setLabel('Definir Canal').setStyle(ButtonStyle.Secondary).setEmoji('📢')
                 );
 
                 const row2 = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('ticket_cfg_add_opcao').setLabel('Adicionar Opção').setStyle(ButtonStyle.Success).setEmoji('➕'),
                     new ButtonBuilder().setCustomId('ticket_cfg_del_opcao').setLabel('Remover Opção').setStyle(ButtonStyle.Danger).setEmoji('🗑️'),
-                    new ButtonBuilder().setCustomId('ticket_enviar_painel').setLabel('Enviar Painel CV2').setStyle(ButtonStyle.Success).setEmoji('🚀')
+                    new ButtonBuilder().setCustomId('ticket_enviar_painel').setLabel('Enviar Painel Embed').setStyle(ButtonStyle.Success).setEmoji('🚀')
                 );
 
                 return await interaction.reply({ embeds: [embed], components: [row1, row2], ephemeral: true });
@@ -1520,12 +1531,7 @@ client.on('interactionCreate', async interaction => {
                     .setMinValues(1)
                     .setMaxValues(1);
 
-                return await interaction.reply({ content: 'Selecione abaixo o canal de texto onde o bot publicará o componente CV2 do ticket:', components: [new ActionRowBuilder().addComponents(selectChannel)], ephemeral: true });
-            }
-
-            if (interaction.customId === 'ticket_cfg_banner') {
-                ticketSetupSession.set(interaction.user.id, { guildId: interaction.guildId, action: 'banner' });
-                return await interaction.reply({ content: '🖼️ Envia agora a imagem (banner) do ticket neste chat como **anexo** (em até 60 segundos).', ephemeral: true });
+                return await interaction.reply({ content: 'Selecione abaixo o canal de texto onde o bot publicará a embed do ticket:', components: [new ActionRowBuilder().addComponents(selectChannel)], ephemeral: true });
             }
 
             if (interaction.customId === 'ticket_cfg_add_opcao') {
@@ -1582,6 +1588,16 @@ client.on('interactionCreate', async interaction => {
                     return await interaction.reply({ content: '❌ O canal configurado não foi encontrado.', ephemeral: true });
                 }
 
+                const embedPanel = new EmbedBuilder()
+                    .setTitle(cfg.titulo)
+                    .setDescription(cfg.descricao)
+                    .setColor(0x3498DB)
+                    .setTimestamp();
+
+                if (cfg.bannerUrl) {
+                    embedPanel.setImage(cfg.bannerUrl);
+                }
+
                 const selectMenu = new StringSelectMenuBuilder()
                     .setCustomId('abrir_ticket_select')
                     .setPlaceholder('📌 Selecione o assunto do atendimento...')
@@ -1593,17 +1609,9 @@ client.on('interactionCreate', async interaction => {
                     })));
 
                 const row = new ActionRowBuilder().addComponents(selectMenu);
-                const payload = {
-                    content: `### ${cfg.titulo}\n${cfg.descricao}`,
-                    components: [row]
-                };
 
-                if (cfg.bannerUrl) {
-                    payload.files = [cfg.bannerUrl];
-                }
-
-                await channel.send(payload);
-                return await interaction.reply({ content: `✅ Painel CV2 de tickets enviado com sucesso para <#${cfg.canalEnvio}>!`, ephemeral: true });
+                await channel.send({ embeds: [embedPanel], components: [row] });
+                return await interaction.reply({ content: `✅ Painel em Embed de tickets enviado com sucesso para <#${cfg.canalEnvio}>!`, ephemeral: true });
             }
         }
 
@@ -1689,20 +1697,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // --- CAPTURA DE ANEXOS PARA O BANNER DO TICKET ---
-    if (interaction.isChatInputCommand() === false && interaction.isButton() === false && interaction.isStringSelectMenu() === false) {
-        if (ticketSetupSession.has(interaction.user.id)) {
-            const session = ticketSetupSession.get(interaction.user.id);
-            if (session.action === 'banner' && interaction.message && interaction.message.attachments.size > 0) {
-                const attachment = interaction.message.attachments.first();
-                ticketGuildData.config.bannerUrl = attachment.url;
-                saveTicketDB(ticketDb);
-                ticketSetupSession.delete(interaction.user.id);
-                return await interaction.reply({ content: '✅ Banner do ticket configurado com sucesso!', ephemeral: true });
-            }
-        }
-    }
-
     // --- SELEÇÃO DO MENU DE TICKETS (CRIAR TICKET) ---
     if (interaction.isStringSelectMenu() && interaction.customId === 'abrir_ticket_select') {
         await interaction.deferReply({ ephemeral: true });
@@ -1710,7 +1704,6 @@ client.on('interactionCreate', async interaction => {
         const cfg = ticketGuildData.config;
         const guild = interaction.guild;
 
-        // Procurar ou criar categoria "tickets abertos"
         let category = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name.toLowerCase() === 'tickets abertos');
         if (!category) {
             try {
