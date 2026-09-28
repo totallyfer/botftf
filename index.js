@@ -2,7 +2,7 @@ const {
     Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, 
     EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, 
     StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, 
-    ChannelType, PermissionFlagsBits, AttachmentBuilder, RoleSelectMenuBuilder 
+    ChannelCategoryDMPermission, ChannelType, PermissionFlagsBits, AttachmentBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder 
 } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
@@ -11,7 +11,7 @@ const { createCanvas, loadImage } = require('@napi-rs/canvas');
 // --- Servidor Web para manter ativo (Render / Replit) ---
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('Bot Unificado (1v1 + Cidade) a funcionar perfeitamente!'));
+app.get('/', (req, res) => res.send('Bot Unificado (1v1 + Cidade + Tickets) a funcionar perfeitamente!'));
 app.listen(PORT, () => console.log(`Servidor web na porta ${PORT}`));
 
 const client = new Client({
@@ -126,6 +126,61 @@ function getCidadeGuildData(db, guildId) {
     return db.guilds[guildId];
 }
 
+// --- Base de dados local (Tickets Isolados por Servidor) ---
+const TICKET_DB_FILE = './ticket_database.json';
+function loadTicketDB() {
+    if (!fs.existsSync(TICKET_DB_FILE)) {
+        fs.writeFileSync(TICKET_DB_FILE, JSON.stringify({ guilds: {} }, null, 2));
+    }
+    try {
+        const data = JSON.parse(fs.readFileSync(TICKET_DB_FILE, 'utf8'));
+        if (!data.guilds) data.guilds = {};
+        return data;
+    } catch {
+        return { guilds: {} };
+    }
+}
+function saveTicketDB(data) {
+    const tmp = TICKET_DB_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, TICKET_DB_FILE);
+}
+function getTicketGuildData(db, guildId) {
+    if (!db.guilds[guildId]) {
+        db.guilds[guildId] = { 
+            config: {
+                titulo: 'CENTRAL DE SUPORTE - TICKETS',
+                descricao: 'Selecione abaixo o motivo do seu atendimento para abrir um ticket com a nossa equipe.',
+                cargoStaff: null,
+                canalEnvio: null,
+                bannerUrl: null,
+                opcoes: [
+                    { label: 'Suporte Geral', value: 'suporte_geral', description: 'Dúvidas gerais e ajuda', emoji: '💬' },
+                    { label: 'Sorteios & Prêmios', value: 'sorteios', description: 'Assuntos relacionados a sorteios', emoji: '🎁' }
+                ]
+            },
+            ticketsAtivos: {}
+        };
+    }
+    if (!db.guilds[guildId].config) {
+        db.guilds[guildId].config = {
+            titulo: 'CENTRAL DE SUPORTE - TICKETS',
+            descricao: 'Selecione abaixo o motivo do seu atendimento para abrir um ticket com a nossa equipe.',
+            cargoStaff: null,
+            canalEnvio: null,
+            bannerUrl: null,
+            opcoes: [
+                { label: 'Suporte Geral', value: 'suporte_geral', description: 'Dúvidas gerais e ajuda', emoji: '💬' },
+                { label: 'Sorteios & Prêmios', value: 'sorteios', description: 'Assuntos relacionados a sorteios', emoji: '🎁' }
+            ]
+        };
+    }
+    if (!db.guilds[guildId].ticketsAtivos) {
+        db.guilds[guildId].ticketsAtivos = {};
+    }
+    return db.guilds[guildId];
+}
+
 // Cooldowns em memória
 const cidadeCooldowns = {
     work: new Map(),
@@ -134,6 +189,9 @@ const cidadeCooldowns = {
     daily: new Map(),
     rob: new Map()
 };
+
+// Sessão temporária para configuração de painéis de ticket via chat
+const ticketSetupSession = new Map();
 
 // ============================================================
 // --- FUNÇÃO PARA ATUALIZAR CARGOS DO PÓDIO (1V1) ---
@@ -212,18 +270,15 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     const ctx = canvas.getContext('2d');
     const selectedColor = COLOR_MAP[dbSettings.tabelaCor] || '#f1c40f';
 
-    // 1. Fundo com gradiente/cor temática superior sofisticada
     ctx.fillStyle = selectedColor;
     ctx.fillRect(0, 0, canvas.width, 160);
 
     ctx.fillStyle = '#121318';
     ctx.fillRect(0, 150, canvas.width, canvas.height - 150);
 
-    // Linha decorativa de destaque
     ctx.fillStyle = selectedColor;
     ctx.fillRect(0, 146, canvas.width, 4);
 
-    // Cabeçalho / Títulos
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 28px sans-serif';
     ctx.textAlign = 'left';
@@ -233,14 +288,12 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.font = '14px sans-serif';
     ctx.fillText('Extrato de contas, carteira e património da cidade', 180, 95);
 
-    // Avatar com moldura elegante
     let avatarImg = null;
     try {
         const avatarURL = member.displayAvatarURL ? member.displayAvatarURL({ extension: 'png', size: 256 }) : `https://cdn.discordapp.com/embed/avatars/0.png`;
         avatarImg = await loadImage(avatarURL);
     } catch {}
 
-    // Moldura do avatar
     ctx.fillStyle = selectedColor;
     ctx.beginPath();
     ctx.arc(100, 80, 52, 0, Math.PI * 2);
@@ -255,7 +308,6 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
         ctx.fill();
     }
 
-    // Identificação do Cidadão no topo direito
     ctx.textAlign = 'right';
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 18px sans-serif';
@@ -266,7 +318,6 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.font = '12px sans-serif';
     ctx.fillText('STATUS: Cidadão Ativo 🏙️', canvas.width - 50, 92);
 
-    // Dados de Valores
     const wallet = userObj.wallet || 0;
     const bank = userObj.bank || 0;
     const total = wallet + bank;
@@ -277,20 +328,19 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     const cardSpacing = 30;
     const startX = 50;
 
-    // --- CARTÃO 1: CARTEIRA ---
+    // Carteira
     ctx.fillStyle = '#1b1d24';
     roundRect(ctx, startX, cardY, cardW, cardH, 16, true, false);
     ctx.strokeStyle = '#2ecc71';
     ctx.lineWidth = 2;
     roundRect(ctx, startX, cardY, cardW, cardH, 16, false, true);
 
-    // Ícone Carteira (desenhado à mão em Canvas)
     ctx.fillStyle = '#2ecc71';
     roundRect(ctx, startX + 25, cardY + 25, 45, 45, 10, true, false);
     ctx.fillStyle = '#1b1d24';
     ctx.fillRect(startX + 35, cardY + 40, 25, 22);
     ctx.fillStyle = '#2ecc71';
-    ctx.fillRect(startX + 45, cardY + 48, 8, 6); // fecho da carteira
+    ctx.fillRect(startX + 45, cardY + 48, 8, 6);
 
     ctx.fillStyle = '#a0a2ab';
     ctx.font = 'bold 13px sans-serif';
@@ -305,7 +355,7 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.font = 'bold 22px sans-serif';
     ctx.fillText(`🪙 ${wallet.toLocaleString()}`, startX + 25, cardY + 175);
 
-    // --- CARTÃO 2: BANCO ---
+    // Banco
     const x2 = startX + cardW + cardSpacing;
     ctx.fillStyle = '#1b1d24';
     roundRect(ctx, x2, cardY, cardW, cardH, 16, true, false);
@@ -313,11 +363,9 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.lineWidth = 2;
     roundRect(ctx, x2, cardY, cardW, cardH, 16, false, true);
 
-    // Ícone Banco (Edifício de colunas)
     ctx.fillStyle = '#3498db';
     roundRect(ctx, x2 + 25, cardY + 25, 45, 45, 10, true, false);
     ctx.fillStyle = '#1b1d24';
-    // Desenhar colunas do banco
     ctx.fillRect(x2 + 35, cardY + 40, 4, 18);
     ctx.fillRect(x2 + 45, cardY + 40, 4, 18);
     ctx.fillRect(x2 + 55, cardY + 40, 4, 18);
@@ -335,7 +383,7 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.font = 'bold 22px sans-serif';
     ctx.fillText(`🏦 ${bank.toLocaleString()}`, x2 + 25, cardY + 175);
 
-    // --- CARTÃO 3: PATRIMÓNIO TOTAL ---
+    // Património
     const x3 = x2 + cardW + cardSpacing;
     ctx.fillStyle = '#1b1d24';
     roundRect(ctx, x3, cardY, cardW, cardH, 16, true, false);
@@ -343,11 +391,9 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.lineWidth = 2;
     roundRect(ctx, x3, cardY, cardW, cardH, 16, false, true);
 
-    // Ícone Património (Símbolo de Gráfico / Coroa financeira)
     ctx.fillStyle = selectedColor;
     roundRect(ctx, x3 + 25, cardY + 25, 45, 45, 10, true, false);
     ctx.fillStyle = '#1b1d24';
-    // Barras de gráfico ascendente
     ctx.fillRect(x3 + 34, cardY + 52, 6, 12);
     ctx.fillRect(x3 + 44, cardY + 45, 6, 19);
     ctx.fillRect(x3 + 54, cardY + 37, 6, 27);
@@ -770,8 +816,9 @@ client.once('ready', async () => {
             .addUserOption(option => option.setName('utilizador').setDescription('Membro a analisar (opcional)').setRequired(false)),
         new SlashCommandBuilder()
             .setName('painel')
-            .setDescription('Painel de controlo administrativo (1v1 ou Cidade)')
+            .setDescription('Painel de controlo administrativo (1v1, Cidade ou Ticket)')
             .addSubcommand(sub => sub.setName('cidade').setDescription('Abre o painel administrativo da cidade'))
+            .addSubcommand(sub => sub.setName('ticket').setDescription('Abre o painel administrativo de tickets'))
             .setDMPermission(false),
         new SlashCommandBuilder()
             .setName('reset')
@@ -827,6 +874,9 @@ client.on('interactionCreate', async interaction => {
 
     const cidadeDb = loadCidadeDB();
     const cidadeGuildData = getCidadeGuildData(cidadeDb, interaction.guildId);
+
+    const ticketDb = loadTicketDB();
+    const ticketGuildData = getTicketGuildData(ticketDb, interaction.guildId);
 
     const ensureCidadeUser = (userId) => {
         if (!cidadeGuildData.users[userId]) {
@@ -947,6 +997,45 @@ client.on('interactionCreate', async interaction => {
                 );
 
                 return await interaction.reply({ embeds: [embed], components: [row] });
+            }
+
+            if (sub === 'ticket') {
+                if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                    return await interaction.reply({ content: '❌ Apenas administradores ou moderadores podem aceder ao painel de tickets!', ephemeral: true });
+                }
+
+                const cfg = ticketGuildData.config;
+                const staffRoleText = cfg.cargoStaff ? `<@&${cfg.cargoStaff}>` : '`Não definido`';
+                const channelText = cfg.canalEnvio ? `<#${cfg.canalEnvio}>` : '`Não definido`';
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎫 Painel Administrativo - Sistema de Tickets')
+                    .setDescription(
+                        `Configure e envie o painel de atendimento robusto (CV2) para o servidor.\n\n` +
+                        `📌 **Título Atual:** \`${cfg.titulo}\`\n` +
+                        `📝 **Descrição:** \`${cfg.descricao}\`\n` +
+                        `🛡️ **Cargo da Staff:** ${staffRoleText}\n` +
+                        `📢 **Canal de Envio:** ${channelText}\n` +
+                        `🖼️ **Banner Anexado:** \`${cfg.bannerUrl ? 'Sim' : 'Não'}\`\n` +
+                        `📋 **Opções do Menu:** \`${cfg.opcoes.length} categorias cadastradas\``
+                    )
+                    .setColor(0x3498DB)
+                    .setTimestamp();
+
+                const row1 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('ticket_cfg_texto').setLabel('Editar Textos').setStyle(ButtonStyle.Primary).setEmoji('✏️'),
+                    new ButtonBuilder().setCustomId('ticket_cfg_cargo').setLabel('Definir Cargo Staff').setStyle(ButtonStyle.Secondary).setEmoji('🛡️'),
+                    new ButtonBuilder().setCustomId('ticket_cfg_canal').setLabel('Definir Canal').setStyle(ButtonStyle.Secondary).setEmoji('📢'),
+                    new ButtonBuilder().setCustomId('ticket_cfg_banner').setLabel('Definir Banner').setStyle(ButtonStyle.Secondary).setEmoji('🖼️')
+                );
+
+                const row2 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('ticket_cfg_add_opcao').setLabel('Adicionar Opção').setStyle(ButtonStyle.Success).setEmoji('➕'),
+                    new ButtonBuilder().setCustomId('ticket_cfg_del_opcao').setLabel('Remover Opção').setStyle(ButtonStyle.Danger).setEmoji('🗑️'),
+                    new ButtonBuilder().setCustomId('ticket_enviar_painel').setLabel('Enviar Painel CV2').setStyle(ButtonStyle.Success).setEmoji('🚀')
+                );
+
+                return await interaction.reply({ embeds: [embed], components: [row1, row2], ephemeral: true });
             }
 
             if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -1382,6 +1471,366 @@ client.on('interactionCreate', async interaction => {
                 saveCidadeDB(cidadeDb);
                 return await interaction.reply({ content: '🔄 Todos os saldos da cidade foram resetados com sucesso neste servidor!', ephemeral: true });
             }
+        }
+
+        // --- INTERAÇÕES DE PAINEL DE TICKETS ---
+        if (interaction.customId.startsWith('ticket_cfg_') || interaction.customId === 'ticket_enviar_painel') {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return await interaction.reply({ content: '❌ Não tens permissão para configurar os tickets.', ephemeral: true });
+            }
+
+            if (interaction.customId === 'ticket_cfg_texto') {
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_ticket_textos')
+                    .setTitle('Configurar Textos do Painel');
+
+                const inputTitulo = new TextInputBuilder()
+                    .setCustomId('input_ticket_titulo')
+                    .setLabel('Título do Painel')
+                    .setStyle(TextInputStyle.Short)
+                    .setValue(ticketGuildData.config.titulo)
+                    .setRequired(true);
+
+                const inputDesc = new TextInputBuilder()
+                    .setCustomId('input_ticket_desc')
+                    .setLabel('Descrição do Painel')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setValue(ticketGuildData.config.descricao)
+                    .setRequired(true);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(inputTitulo), new ActionRowBuilder().addComponents(inputDesc));
+                return await interaction.showModal(modal);
+            }
+
+            if (interaction.customId === 'ticket_cfg_cargo') {
+                const selectRole = new RoleSelectMenuBuilder()
+                    .setCustomId('select_ticket_cargo_staff')
+                    .setPlaceholder('🛡️ Selecione o cargo da Staff...')
+                    .setMinValues(1)
+                    .setMaxValues(1);
+
+                return await interaction.reply({ content: 'Selecione abaixo qual cargo terá acesso administrativo aos tickets criados:', components: [new ActionRowBuilder().addComponents(selectRole)], ephemeral: true });
+            }
+
+            if (interaction.customId === 'ticket_cfg_canal') {
+                const selectChannel = new ChannelSelectMenuBuilder()
+                    .setCustomId('select_ticket_canal_envio')
+                    .setPlaceholder('📢 Selecione o canal onde o painel será enviado...')
+                    .setChannelTypes([ChannelType.GuildText])
+                    .setMinValues(1)
+                    .setMaxValues(1);
+
+                return await interaction.reply({ content: 'Selecione abaixo o canal de texto onde o bot publicará o componente CV2 do ticket:', components: [new ActionRowBuilder().addComponents(selectChannel)], ephemeral: true });
+            }
+
+            if (interaction.customId === 'ticket_cfg_banner') {
+                ticketSetupSession.set(interaction.user.id, { guildId: interaction.guildId, action: 'banner' });
+                return await interaction.reply({ content: '🖼️ Envia agora a imagem (banner) do ticket neste chat como **anexo** (em até 60 segundos).', ephemeral: true });
+            }
+
+            if (interaction.customId === 'ticket_cfg_add_opcao') {
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_ticket_add_opcao')
+                    .setTitle('Adicionar Opção ao Menu');
+
+                const labelInput = new TextInputBuilder()
+                    .setCustomId('input_opcao_label')
+                    .setLabel('Nome da Opção')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: Suporte a Doações')
+                    .setRequired(true);
+
+                const descInput = new TextInputBuilder()
+                    .setCustomId('input_opcao_desc')
+                    .setLabel('Descrição curta')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: Tire dúvidas sobre doações')
+                    .setRequired(true);
+
+                const emojiInput = new TextInputBuilder()
+                    .setCustomId('input_opcao_emoji')
+                    .setLabel('Emoji (Opcional)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: 💎')
+                    .setRequired(false);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(labelInput), new ActionRowBuilder().addComponents(descInput), new ActionRowBuilder().addComponents(emojiInput));
+                return await interaction.showModal(modal);
+            }
+
+            if (interaction.customId === 'ticket_cfg_del_opcao') {
+                if (ticketGuildData.config.opcoes.length === 0) {
+                    return await interaction.reply({ content: '❌ Não existem opções cadastradas para remover.', ephemeral: true });
+                }
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('select_ticket_del_opcao')
+                    .setPlaceholder('🗑️ Selecione a opção a remover...')
+                    .addOptions(ticketGuildData.config.opcoes.map(o => ({ label: o.label, value: o.value, description: o.description })));
+
+                return await interaction.reply({ content: 'Selecione qual categoria do menu de seleção deseja apagar:', components: [new ActionRowBuilder().addComponents(selectMenu)], ephemeral: true });
+            }
+
+            if (interaction.customId === 'ticket_enviar_painel') {
+                const cfg = ticketGuildData.config;
+                if (!cfg.canalEnvio) {
+                    return await interaction.reply({ content: '❌ Define primeiro o **canal de envio** do painel!', ephemeral: true });
+                }
+
+                const channel = await interaction.guild.channels.fetch(cfg.canalEnvio).catch(() => null);
+                if (!channel) {
+                    return await interaction.reply({ content: '❌ O canal configurado não foi encontrado.', ephemeral: true });
+                }
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('abrir_ticket_select')
+                    .setPlaceholder('📌 Selecione o assunto do atendimento...')
+                    .addOptions(cfg.opcoes.map(o => ({
+                        label: o.label,
+                        value: o.value,
+                        description: o.desc || o.description || 'Atendimento especializado',
+                        emoji: o.emoji || '🎫'
+                    })));
+
+                const row = new ActionRowBuilder().addComponents(selectMenu);
+                const payload = {
+                    content: `### ${cfg.titulo}\n${cfg.descricao}`,
+                    components: [row]
+                };
+
+                if (cfg.bannerUrl) {
+                    payload.files = [cfg.bannerUrl];
+                }
+
+                await channel.send(payload);
+                return await interaction.reply({ content: `✅ Painel CV2 de tickets enviado com sucesso para <#${cfg.canalEnvio}>!`, ephemeral: true });
+            }
+        }
+
+        // --- BOTÕES DENTRO DOS TICKETS ABERTOS ---
+        if (['ticket_fechar', 'ticket_reivindicar', 'ticket_transcript', 'ticket_excluir'].includes(interaction.customId)) {
+            const ticketId = interaction.channelId;
+            const ticketObj = ticketGuildData.ticketsAtivos[ticketId];
+
+            if (!ticketObj) {
+                return await interaction.reply({ content: '❌ Este canal não está registado como um ticket ativo válido.', ephemeral: true });
+            }
+
+            const staffRoleId = ticketGuildData.config.cargoStaff;
+            const isStaff = staffRoleId && interaction.member.roles.cache.has(staffRoleId);
+            const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+            const isOwner = interaction.user.id === ticketObj.userId;
+
+            if (interaction.customId === 'ticket_fechar') {
+                if (!isStaff && !isAdmin && !isOwner) {
+                    return await interaction.reply({ content: '❌ Não tens permissão para fechar este ticket!', ephemeral: true });
+                }
+
+                await interaction.reply({ content: '🔒 Ticket fechado! A eliminar canal em 5 segundos...' });
+                delete ticketGuildData.ticketsAtivos[ticketId];
+                saveTicketDB(ticketDb);
+
+                setTimeout(async () => {
+                    await interaction.channel.delete().catch(() => {});
+                }, 5000);
+                return;
+            }
+
+            if (interaction.customId === 'ticket_reivindicar') {
+                if (!isStaff && !isAdmin) {
+                    return await interaction.reply({ content: '❌ Apenas membros da Staff podem reivindicar tickets!', ephemeral: true });
+                }
+
+                ticketObj.claimedBy = interaction.user.id;
+                saveTicketDB(ticketDb);
+
+                const embedClaim = new EmbedBuilder()
+                    .setTitle('🛡️ Ticket Reivindicado')
+                    .setDescription(`Este atendimento foi assumido por ${interaction.user}.`)
+                    .setColor(0x2ECC71);
+
+                return await interaction.reply({ embeds: [embedClaim] });
+            }
+
+            if (interaction.customId === 'ticket_transcript') {
+                if (!isStaff && !isAdmin) {
+                    return await interaction.reply({ content: '❌ Apenas membros da Staff podem gerar transcripts!', ephemeral: true });
+                }
+
+                await interaction.deferReply({ ephemeral: true });
+                try {
+                    const messages = await interaction.channel.messages.fetch({ limit: 100 });
+                    const sorted = Array.from(messages.values()).reverse();
+                    let textLog = `=== TRANSCRIPT DO TICKET: ${interaction.channel.name} ===\n\n`;
+                    for (const m of sorted) {
+                        textLog += `[${new Date(m.createdTimestamp).toLocaleString()}] ${m.author.tag}:${m.content}\n`;
+                    }
+
+                    const buffer = Buffer.from(textLog, 'utf-8');
+                    const attachment = new AttachmentBuilder(buffer, { name: `transcript-${interaction.channel.name}.txt` });
+
+                    return await interaction.editReply({ content: '📄 Transcript gerado com sucesso:', files: [attachment] });
+                } catch (e) {
+                    return await interaction.editReply({ content: '❌ Erro ao gerar o transcript.' });
+                }
+            }
+
+            if (interaction.customId === 'ticket_excluir') {
+                if (!isStaff && !isAdmin) {
+                    return await interaction.reply({ content: '❌ Apenas membros da Staff podem excluir tickets instantaneamente!', ephemeral: true });
+                }
+
+                await interaction.reply({ content: '🗑️ A apagar ticket imediatamente...' });
+                delete ticketGuildData.ticketsAtivos[ticketId];
+                saveTicketDB(ticketDb);
+                setTimeout(async () => { await interaction.channel.delete().catch(() => {}); }, 2000);
+                return;
+            }
+        }
+    }
+
+    // --- CAPTURA DE ANEXOS PARA O BANNER DO TICKET ---
+    if (interaction.isChatInputCommand() === false && interaction.isButton() === false && interaction.isStringSelectMenu() === false) {
+        if (ticketSetupSession.has(interaction.user.id)) {
+            const session = ticketSetupSession.get(interaction.user.id);
+            if (session.action === 'banner' && interaction.message && interaction.message.attachments.size > 0) {
+                const attachment = interaction.message.attachments.first();
+                ticketGuildData.config.bannerUrl = attachment.url;
+                saveTicketDB(ticketDb);
+                ticketSetupSession.delete(interaction.user.id);
+                return await interaction.reply({ content: '✅ Banner do ticket configurado com sucesso!', ephemeral: true });
+            }
+        }
+    }
+
+    // --- SELEÇÃO DO MENU DE TICKETS (CRIAR TICKET) ---
+    if (interaction.isStringSelectMenu() && interaction.customId === 'abrir_ticket_select') {
+        await interaction.deferReply({ ephemeral: true });
+        const selectedValue = interaction.values[0];
+        const cfg = ticketGuildData.config;
+        const guild = interaction.guild;
+
+        // Procurar ou criar categoria "tickets abertos"
+        let category = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name.toLowerCase() === 'tickets abertos');
+        if (!category) {
+            try {
+                category = await guild.channels.create({
+                    name: 'TICKETS ABERTOS',
+                    type: ChannelType.GuildCategory
+                });
+            } catch (e) {
+                return await interaction.editReply({ content: '❌ Erro ao criar a categoria "TICKETS ABERTOS". Verifique as permissões do bot.' });
+            }
+        }
+
+        const staffRoleId = cfg.cargoStaff;
+        const permissionOverwrites = [
+            {
+                id: guild.id,
+                deny: [PermissionFlagsBits.ViewChannel]
+            },
+            {
+                id: interaction.user.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+            }
+        ];
+
+        if (staffRoleId) {
+            permissionOverwrites.push({
+                id: staffRoleId,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+            });
+        }
+
+        try {
+            const ticketChannel = await guild.channels.create({
+                name: `ticket-${interaction.user.username.slice(0, 10)}`,
+                type: ChannelType.GuildText,
+                parent: category.id,
+                permissionOverwrites: permissionOverwrites
+            });
+
+            ticketGuildData.ticketsAtivos[ticketChannel.id] = {
+                userId: interaction.user.id,
+                category: selectedValue,
+                claimedBy: null
+            };
+            saveTicketDB(ticketDb);
+
+            const staffMention = staffRoleId ? `<@&${staffRoleId}>` : '`Staff`';
+            const embedTicket = new EmbedBuilder()
+                .setTitle('🎫 Atendimento Iniciado')
+                .setDescription(
+                    `Olá ${interaction.user}, bem-vindo ao seu ticket!\n` +
+                    `Categoria selecionada: **${selectedValue}**\n\n` +
+                    `Um membro da equipe ${staffMention} irá atendê-lo em breve.`
+                )
+                .setColor(0x3498DB)
+                .setTimestamp();
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('ticket_fechar').setLabel('Fechar Ticket').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
+                new ButtonBuilder().setCustomId('ticket_reivindicar').setLabel('Reivindicar').setStyle(ButtonStyle.Success).setEmoji('🛡️'),
+                new ButtonBuilder().setCustomId('ticket_transcript').setLabel('Transcript').setStyle(ButtonStyle.Secondary).setEmoji('📄'),
+                new ButtonBuilder().setCustomId('ticket_excluir').setLabel('Excluir').setStyle(ButtonStyle.Danger).setEmoji('🗑️')
+            );
+
+            await ticketChannel.send({
+                content: `${interaction.user}${staffRoleId ? `<@&${staffRoleId}>` : ''}`,
+                embeds: [embedTicket],
+                components: [row]
+            });
+
+            return await interaction.editReply({ content: `✅ O seu ticket foi criado com sucesso em ${ticketChannel}!` });
+        } catch (e) {
+            console.error(e);
+            return await interaction.editReply({ content: '❌ Erro ao criar o canal do ticket.' });
+        }
+    }
+
+    // --- SELECT MENUS DE CONFIGURAÇÃO DE TICKETS ---
+    if (interaction.isRoleSelectMenu() && interaction.customId === 'select_ticket_cargo_staff') {
+        ticketGuildData.config.cargoStaff = interaction.values[0];
+        saveTicketDB(ticketDb);
+        return await interaction.update({ content: `✅ Cargo da Staff configurado para <@&${interaction.values[0]}>!`, components: [] });
+    }
+
+    if (interaction.isChannelSelectMenu() && interaction.customId === 'select_ticket_canal_envio') {
+        ticketGuildData.config.canalEnvio = interaction.values[0];
+        saveTicketDB(ticketDb);
+        return await interaction.update({ content: `✅ Canal de envio do painel configurado para <#${interaction.values[0]}>!`, components: [] });
+    }
+
+    if (interaction.isStringSelectMenu() && interaction.customId === 'select_ticket_del_opcao') {
+        const val = interaction.values[0];
+        ticketGuildData.config.opcoes = ticketGuildData.config.opcoes.filter(o => o.value !== val);
+        saveTicketDB(ticketDb);
+        return await interaction.update({ content: `✅ Opção \`${val}\` removida com sucesso do menu de tickets!`, components: [] });
+    }
+
+    // --- MODAIS DE TICKETS ---
+    if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'modal_ticket_textos') {
+            const titulo = interaction.fields.getTextInputValue('input_ticket_titulo');
+            const desc = interaction.fields.getTextInputValue('input_ticket_desc');
+
+            ticketGuildData.config.titulo = titulo;
+            ticketGuildData.config.descricao = desc;
+            saveTicketDB(ticketDb);
+
+            return await interaction.reply({ content: '✅ Textos do painel de tickets atualizados com sucesso!', ephemeral: true });
+        }
+
+        if (interaction.customId === 'modal_ticket_add_opcao') {
+            const label = interaction.fields.getTextInputValue('input_opcao_label');
+            const desc = interaction.fields.getTextInputValue('input_opcao_desc');
+            const emoji = interaction.fields.getTextInputValue('input_opcao_emoji') || '🎫';
+            const value = label.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+            ticketGuildData.config.opcoes.push({ label, value, desc, emoji });
+            saveTicketDB(ticketDb);
+
+            return await interaction.reply({ content: `✅ Opção **${label}** adicionada com sucesso ao menu de seleção!`, ephemeral: true });
         }
     }
 
