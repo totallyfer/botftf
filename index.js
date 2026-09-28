@@ -1046,7 +1046,8 @@ client.on('interactionCreate', async interaction => {
                     new ButtonBuilder().setCustomId('ticket_enviar_painel').setLabel('Enviar Painel Embed').setStyle(ButtonStyle.Success).setEmoji('🚀')
                 );
 
-                return await interaction.reply({ embeds: [embed], components: [row1, row2], ephemeral: true });
+                // Removido o ephemeral: true conforme solicitado
+                return await interaction.reply({ embeds: [embed], components: [row1, row2] });
             }
 
             if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -1611,7 +1612,8 @@ client.on('interactionCreate', async interaction => {
                 const row = new ActionRowBuilder().addComponents(selectMenu);
 
                 await channel.send({ embeds: [embedPanel], components: [row] });
-                return await interaction.reply({ content: `✅ Painel em Embed de tickets enviado com sucesso para <#${cfg.canalEnvio}>!`, ephemeral: true });
+                // Removido o ephemeral: true conforme solicitado
+                return await interaction.reply({ content: `✅ Painel em Embed de tickets enviado com sucesso para <#${cfg.canalEnvio}>!` });
             }
         }
 
@@ -1811,7 +1813,7 @@ client.on('interactionCreate', async interaction => {
             ticketGuildData.config.descricao = desc;
             saveTicketDB(ticketDb);
 
-            return await interaction.reply({ content: '✅ Textos do painel de tickets atualizados com sucesso!', ephemeral: true });
+            return await interaction.reply({ content: '✅ Textos do painel de tickets atualizados com sucesso!' });
         }
 
         if (interaction.customId === 'modal_ticket_add_opcao') {
@@ -1823,7 +1825,7 @@ client.on('interactionCreate', async interaction => {
             ticketGuildData.config.opcoes.push({ label, value, desc, emoji });
             saveTicketDB(ticketDb);
 
-            return await interaction.reply({ content: `✅ Opção **${label}** adicionada com sucesso ao menu de seleção!`, ephemeral: true });
+            return await interaction.reply({ content: `✅ Opção **${label}** adicionada com sucesso ao menu de seleção!` });
         }
     }
 
