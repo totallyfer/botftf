@@ -205,6 +205,107 @@ function drawRoundImage(ctx, img, x, y, size) {
 }
 
 // ============================================================
+// --- GERADOR DE IMAGEM: MONEYINFO (ECONOMIA) ---
+// ============================================================
+async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
+    const canvas = createCanvas(800, 420);
+    const ctx = canvas.getContext('2d');
+    const selectedColor = COLOR_MAP[dbSettings.tabelaCor] || '#f1c40f';
+
+    // Fundo principal com cor temática
+    ctx.fillStyle = selectedColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Camada escura translúcida de fundo
+    ctx.fillStyle = 'rgba(15, 15, 18, 0.88)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Título Superior
+    ctx.fillStyle = selectedColor;
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('BANCO CENTRAL DA CIDADE', canvas.width / 2, 45);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillText('INFORMAÇÕES FINANCEIRAS', canvas.width / 2, 75);
+
+    // Avatar do utilizador
+    let avatarImg = null;
+    try {
+        const avatarURL = member.displayAvatarURL ? member.displayAvatarURL({ extension: 'png', size: 256 }) : `https://cdn.discordapp.com/embed/avatars/0.png`;
+        avatarImg = await loadImage(avatarURL);
+    } catch {}
+
+    if (avatarImg) {
+        drawRoundImage(ctx, avatarImg, 65, 120, 110);
+    } else {
+        ctx.fillStyle = '#2c2d30';
+        ctx.beginPath();
+        ctx.arc(120, 175, 55, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Nome do cidadão ao lado do avatar
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px sans-serif';
+    const username = member.displayName || member.username || 'Cidadão';
+    ctx.fillText(username.slice(0, 22), 195, 160);
+
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '13px sans-serif';
+    ctx.fillText('Conta verificada na cidade 🏙️', 195, 185);
+
+    // Caixas de Valores (Carteira, Banco, Total)
+    const boxY = 225;
+    const boxW = 215;
+    const boxH = 135;
+
+    const wallet = userObj.wallet || 0;
+    const bank = userObj.bank || 0;
+    const total = wallet + bank;
+
+    // 1. Caixa Carteira
+    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
+    roundRect(ctx, 65, boxY, boxW, boxH, 12, true, false);
+    ctx.fillStyle = '#2ecc71';
+    ctx.fillRect(65, boxY, 5, boxH);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('CARTEIRA', 85, boxY + 35);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(`🪙 ${wallet.toLocaleString()}`, 85, boxY + 85);
+
+    // 2. Caixa Banco
+    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
+    roundRect(ctx, 292, boxY, boxW, boxH, 12, true, false);
+    ctx.fillStyle = '#3498db';
+    ctx.fillRect(292, boxY, 5, boxH);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('BANCO', 312, boxY + 35);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(`🏦 ${bank.toLocaleString()}`, 312, boxY + 85);
+
+    // 3. Caixa Património Total
+    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
+    roundRect(ctx, 519, boxY, boxW, boxH, 12, true, false);
+    ctx.fillStyle = selectedColor;
+    ctx.fillRect(519, boxY, 5, boxH);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('PATRIMÓNIO TOTAL', 539, boxY + 35);
+    ctx.fillStyle = '#f1c40f';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(`💰 ${total.toLocaleString()}`, 539, boxY + 85);
+
+    return canvas.toBuffer('image/png');
+}
+
+// ============================================================
 // --- GERADOR DE IMAGEM: ANÁLISE DE PERFIL (1V1) ---
 // ============================================================
 async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}) {
@@ -631,7 +732,7 @@ client.once('ready', async () => {
             .setDescription('Resgata sua recompensa diária de moedas'),
         new SlashCommandBuilder()
             .setName('moneyinfo')
-            .setDescription('Mostra o saldo na carteira, banco e informações financeiras')
+            .setDescription('Mostra o saldo na carteira, banco e informações financeiras em imagem')
             .addUserOption(option => option.setName('usuario').setDescription('Ver informações de outro cidadão').setRequired(false)),
         new SlashCommandBuilder()
             .setName('dep')
@@ -994,22 +1095,26 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'moneyinfo') {
+            await interaction.deferReply();
             const targetUser = interaction.options.getUser('usuario') || interaction.user;
             const userObj = ensureCidadeUser(targetUser.id);
-            const total = userObj.wallet + userObj.bank;
+            const memberObj = await interaction.guild.members.fetch(targetUser.id).catch(() => targetUser);
 
-            const embed = new EmbedBuilder()
-                .setTitle(`📊 Informações Financeiras - ${targetUser.username}`)
-                .setThumbnail(targetUser.displayAvatarURL({ extension: 'png' }))
-                .addFields(
-                    { name: '🪙 Carteira', value: `\`${userObj.wallet.toLocaleString()} moedas\``, inline: true },
-                    { name: '🏦 Banco', value: `\`${userObj.bank.toLocaleString()} moedas\``, inline: true },
-                    { name: '💰 Património Total', value: `\`${total.toLocaleString()} moedas\``, inline: false }
-                )
-                .setColor(COLOR_MAP[cidadeGuildData.settings.tabelaCor] || 0xF1C40F)
-                .setTimestamp();
+            try {
+                const buffer = await generateMoneyInfoImage(memberObj, userObj, cidadeGuildData.settings);
+                const attachment = new AttachmentBuilder(buffer, { name: `moneyinfo_${targetUser.username}.png` });
 
-            return await interaction.reply({ embeds: [embed] });
+                const embed = new EmbedBuilder()
+                    .setTitle(`📊 Informações Financeiras - ${targetUser.username}`)
+                    .setColor(COLOR_MAP[cidadeGuildData.settings.tabelaCor] || 0xF1C40F)
+                    .setImage(`attachment://moneyinfo_${targetUser.username}.png`)
+                    .setTimestamp();
+
+                return await interaction.editReply({ embeds: [embed], files: [attachment] });
+            } catch (err) {
+                console.error('Erro ao gerar imagem moneyinfo:', err);
+                return await interaction.editReply({ content: '❌ Erro ao gerar a imagem de informações financeiras.' });
+            }
         }
 
         if (commandName === 'dep') {
