@@ -39,47 +39,19 @@ const COLOR_MAP = {
     'ciano': '#00bcd4'
 };
 
-// --- Base de dados local (1v1) ---
+// --- Base de dados local (1v1 por Servidor) ---
 const DB_FILE = './database.json';
 function loadDB() {
     if (!fs.existsSync(DB_FILE)) {
-        fs.writeFileSync(DB_FILE, JSON.stringify({ 
-            players: {}, 
-            settings: { 
-                ligaNome: '', 
-                ligaCor: 'dourado',
-                cargoProcurando: null,
-                cargoTop1: null,
-                cargoTop2: null,
-                cargoTop3: null
-            } 
-        }, null, 2));
+        fs.writeFileSync(DB_FILE, JSON.stringify({ players: {}, guilds: {} }, null, 2));
     }
     try {
         const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        if (!data.settings) {
-            data.settings = { 
-                ligaNome: '', 
-                ligaCor: 'dourado',
-                cargoProcurando: null,
-                cargoTop1: null,
-                cargoTop2: null,
-                cargoTop3: null
-            };
-        }
+        if (!data.guilds) data.guilds = {};
+        if (!data.players) data.players = {};
         return data;
     } catch {
-        return { 
-            players: {}, 
-            settings: { 
-                ligaNome: '', 
-                ligaCor: 'dourado',
-                cargoProcurando: null,
-                cargoTop1: null,
-                cargoTop2: null,
-                cargoTop3: null
-            } 
-        };
+        return { players: {}, guilds: {} };
     }
 }
 function saveDB(data) {
@@ -87,36 +59,48 @@ function saveDB(data) {
     fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
     fs.renameSync(tmp, DB_FILE);
 }
+function getGuildSettings(db, guildId) {
+    if (!db.guilds[guildId]) {
+        db.guilds[guildId] = { 
+            ligaNome: '', 
+            ligaCor: 'dourado',
+            cargoProcurando: null,
+            cargoTop1: null,
+            cargoTop2: null,
+            cargoTop3: null
+        };
+    }
+    return db.guilds[guildId];
+}
 
-// --- Base de dados local (Cidade) ---
+// --- Base de dados local (Cidade por Servidor) ---
 const CIDADE_DB_FILE = './cidade_database.json';
 function loadCidadeDB() {
     if (!fs.existsSync(CIDADE_DB_FILE)) {
-        fs.writeFileSync(CIDADE_DB_FILE, JSON.stringify({ 
-            users: {}, 
-            settings: { 
-                tabelaNome: 'CIDADE - RANKING', 
-                tabelaCor: 'dourado'
-            } 
-        }, null, 2));
+        fs.writeFileSync(CIDADE_DB_FILE, JSON.stringify({ users: {}, guilds: {} }, null, 2));
     }
     try {
         const data = JSON.parse(fs.readFileSync(CIDADE_DB_FILE, 'utf8'));
-        if (!data.settings) {
-            data.settings = { tabelaNome: 'CIDADE - RANKING', tabelaCor: 'dourado' };
-        }
+        if (!data.guilds) data.guilds = {};
+        if (!data.users) data.users = {};
         return data;
     } catch {
-        return { 
-            users: {}, 
-            settings: { tabelaNome: 'CIDADE - RANKING', tabelaCor: 'dourado' } 
-        };
+        return { users: {}, guilds: {} };
     }
 }
 function saveCidadeDB(data) {
     const tmp = CIDADE_DB_FILE + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
     fs.renameSync(tmp, CIDADE_DB_FILE);
+}
+function getCidadeGuildSettings(db, guildId) {
+    if (!db.guilds[guildId]) {
+        db.guilds[guildId] = { 
+            tabelaNome: 'CIDADE - RANKING', 
+            tabelaCor: 'dourado'
+        };
+    }
+    return db.guilds[guildId];
 }
 
 // Cooldowns da cidade em memória
@@ -133,7 +117,7 @@ const cidadeCooldowns = {
 // ============================================================
 async function atualizarCargosPodio(guild, db) {
     if (!guild) return;
-    const settings = db.settings;
+    const settings = getGuildSettings(db, guild.id);
     const sortedPlayers = Object.values(db.players)
         .filter(p => p.points > 0)
         .sort((a, b) => b.points - a.points);
@@ -583,7 +567,6 @@ client.once('ready', async () => {
     console.log(`Bot Unificado online como ${client.user.tag}!`);
 
     const commands = [
-        // Comandos 1v1
         new SlashCommandBuilder()
             .setName('tabela')
             .setDescription('Mostra a tabela de classificação 1v1 em imagem')
@@ -608,7 +591,6 @@ client.once('ready', async () => {
             .setDescription('Reseta a tabela e dados de 1v1 (Apenas Admins)')
             .addStringOption(option => option.setName('modo').setDescription('Modo').setRequired(true).addChoices({ name: '1v1', value: '1v1' })),
 
-        // Comandos Cidade / Economia
         new SlashCommandBuilder()
             .setName('tabelacidade')
             .setDescription('Mostra a tabela de classificação da cidade'),
@@ -641,18 +623,21 @@ client.once('ready', async () => {
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     try {
         await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
-        console.log('Todos os comandos (1v1 + Cidade) registados com sucesso!');
+        console.log('Todos os comandos registados com sucesso!');
     } catch (error) {
         console.error('Erro ao registar comandos:', error);
     }
 });
 
 // ============================================================
-// --- GESTÃO DE INTERAÇÕES (1V1 + CIDADE) ---
+// --- GESTÃO DE INTERAÇÕES ---
 // ============================================================
 client.on('interactionCreate', async interaction => {
     const db = loadDB();
+    const guildSettings = getGuildSettings(db, interaction.guildId);
+
     const cidadeDb = loadCidadeDB();
+    const cidadeGuildSettings = getCidadeGuildSettings(cidadeDb, interaction.guildId);
 
     const ensureCidadeUser = (userId) => {
         if (!cidadeDb.users[userId]) {
@@ -664,7 +649,6 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
         const { commandName } = interaction;
 
-        // --- COMANDOS 1V1 ---
         if (commandName === 'tabela') {
             await interaction.deferReply();
             const players = await getRankedPlayers(db);
@@ -672,11 +656,11 @@ client.on('interactionCreate', async interaction => {
                 return await interaction.editReply({ content: '⚠️ Ainda não existem jogadores com pontuação positiva na tabela 1v1!' });
             }
             try {
-                const payload = await buildTabelaMessage(players, 0, db.settings);
+                const payload = await buildTabelaMessage(players, 0, guildSettings);
                 return await interaction.editReply(payload);
             } catch (err) {
                 console.error('Erro ao gerar imagem da tabela:', err);
-                return await interaction.editReply({ content: '❌ Erro ao gerar a imagem da tabela. Tenta novamente.' });
+                return await interaction.editReply({ content: '❌ Erro ao gerar a imagem da tabela.' });
             }
         }
 
@@ -708,12 +692,12 @@ client.on('interactionCreate', async interaction => {
                 .setCustomId(`escolher_mapa_${interaction.user.id}_${adversario ? adversario.id : 'aleatorio'}`)
                 .setPlaceholder('🗺️ Selecione o mapa do confronto...')
                 .addOptions([
-                    { label: 'Homestead', value: 'Homestead', description: 'Jogar no mapa Homestead' },
-                    { label: 'Airport', value: 'Airport', description: 'Jogar no mapa Airport' },
-                    { label: 'Facility', value: 'Facility', description: 'Jogar no mapa Facility' },
-                    { label: 'Abandoned Prison', value: 'Abandoned Prison', description: 'Jogar no mapa Abandoned Prison' },
-                    { label: 'Arcade', value: 'Arcade', description: 'Jogar no mapa Arcade' },
-                    { label: 'Abandoned Facility', value: 'Abandoned Facility', description: 'Jogar no mapa Abandoned Facility' }
+                    { label: 'Homestead', value: 'Homestead' },
+                    { label: 'Airport', value: 'Airport' },
+                    { label: 'Facility', value: 'Facility' },
+                    { label: 'Abandoned Prison', value: 'Abandoned Prison' },
+                    { label: 'Arcade', value: 'Arcade' },
+                    { label: 'Abandoned Facility', value: 'Abandoned Facility' }
                 ]);
 
             const row = new ActionRowBuilder().addComponents(mapSelect);
@@ -732,12 +716,12 @@ client.on('interactionCreate', async interaction => {
             const memberObj = await interaction.guild.members.fetch(targetUser.id).catch(() => targetUser);
 
             try {
-                const buffer = await generateAnaliseImage(memberObj, pData, posText, db.settings);
+                const buffer = await generateAnaliseImage(memberObj, pData, posText, guildSettings);
                 const attachment = new AttachmentBuilder(buffer, { name: `analise_${targetUser.username}.png` });
 
                 const embed = new EmbedBuilder()
                     .setTitle(`<:trofeu:1554216098319044621> Perfil de Desempenho - ${targetUser.username}`)
-                    .setColor(COLOR_MAP[db.settings.ligaCor] || 0xE74C3C)
+                    .setColor(COLOR_MAP[guildSettings.ligaCor] || 0xE74C3C)
                     .setImage(`attachment://analise_${targetUser.username}.png`)
                     .setTimestamp();
 
@@ -751,21 +735,19 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'painel') {
             const sub = interaction.options.getSubcommand(false);
             
-            // Se for /painel cidade
             if (sub === 'cidade') {
                 if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                     return await interaction.reply({ content: '❌ Apenas membros com permissão de **Moderação** ou **Administrador** podem aceder ao painel da cidade!', ephemeral: true });
                 }
 
-                const settings = cidadeDb.settings;
                 const embed = new EmbedBuilder()
                     .setTitle('🏙️ Painel Administrativo - Cidade')
                     .setDescription(
-                        `Gerencie as configurações da cidade e da tabela de economia diretamente por aqui.\n\n` +
-                        `📌 **Título da Tabela:** \`${settings.tabelaNome}\`\n` +
-                        `🎨 **Cor Temática:** \`${settings.tabelaCor}\``
+                        `Gerencie as configurações da cidade neste servidor.\n\n` +
+                        `📌 **Título da Tabela:** \`${cidadeGuildSettings.tabelaNome}\`\n` +
+                        `🎨 **Cor Temática:** \`${cidadeGuildSettings.tabelaCor}\``
                     )
-                    .setColor(COLOR_MAP[settings.tabelaCor] || 0xF1C40F)
+                    .setColor(COLOR_MAP[cidadeGuildSettings.tabelaCor] || 0xF1C40F)
                     .setTimestamp();
 
                 const row = new ActionRowBuilder().addComponents(
@@ -778,24 +760,22 @@ client.on('interactionCreate', async interaction => {
                 return await interaction.reply({ embeds: [embed], components: [row] });
             }
 
-            // Caso contrário, abre o painel padrão de 1v1
             if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return await interaction.reply({ content: '❌ Apenas membros com permissão de **Moderação** ou **Administrador** podem aceder a este painel!', ephemeral: true });
             }
 
-            const settings = db.settings;
             const embed = new EmbedBuilder()
                 .setTitle('<:moderao:1545806399169101854> Painel de Controle Administrativo - 1v1')
                 .setDescription(
-                    `Gerencie as configurações visuais, cargos e da liga atual diretamente por aqui.\n\n` +
-                    `<:trofeu:1554216098319044621> **Liga Atual:** \`${settings.ligaNome || 'Não configurado'}\`\n` +
-                    `<:custo:1554216373285163100> **Cor Temática:** \`${settings.ligaCor}\`\n` +
-                    `<:engrenagem:1554223036948021249> **Cargo de Ping (Desafiar):** ${settings.cargoProcurando ? `<@&${settings.cargoProcurando}>` : '`Nenhum`'}\n` +
-                    `<:tro:1554226308224131184> **Cargo Top 1:** ${settings.cargoTop1 ? `<@&${settings.cargoTop1}>` : '`Nenhum`'}\n` +
-                    `<:tro2:1554226635908321293> **Cargo Top 2:** ${settings.cargoTop2 ? `<@&${settings.cargoTop2}>` : '`Nenhum`'}\n` +
-                    `<:tro3:1554226883183247371> **Cargo Top 3:** ${settings.cargoTop3 ? `<@&${settings.cargoTop3}>` : '`Nenhum`'}`
+                    `Gerencie as configurações da liga neste servidor.\n\n` +
+                    `<:trofeu:1554216098319044621> **Liga Atual:** \`${guildSettings.ligaNome || 'Não configurado'}\`\n` +
+                    `<:custo:1554216373285163100> **Cor Temática:** \`${guildSettings.ligaCor}\`\n` +
+                    `<:engrenagem:1554223036948021249> **Cargo de Ping (Desafiar):** ${guildSettings.cargoProcurando ? `<@&${guildSettings.cargoProcurando}>` : '`Nenhum`'}\n` +
+                    `<:tro:1554226308224131184> **Cargo Top 1:** ${guildSettings.cargoTop1 ? `<@&${guildSettings.cargoTop1}>` : '`Nenhum`'}\n` +
+                    `<:tro2:1554226635908321293> **Cargo Top 2:** ${guildSettings.cargoTop2 ? `<@&${guildSettings.cargoTop2}>` : '`Nenhum`'}\n` +
+                    `<:tro3:1554226883183247371> **Cargo Top 3:** ${guildSettings.cargoTop3 ? `<@&${guildSettings.cargoTop3}>` : '`Nenhum`'}`
                 )
-                .setColor(COLOR_MAP[settings.ligaCor] || 0xE74C3C)
+                .setColor(COLOR_MAP[guildSettings.ligaCor] || 0xE74C3C)
                 .setTimestamp();
 
             const rowButtons1 = new ActionRowBuilder().addComponents(
@@ -822,7 +802,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
             const players = await getRankedCidadePlayers(cidadeDb, client);
             try {
-                const payload = await buildCidadeTabelaMessage(players, 0, cidadeDb.settings, client);
+                const payload = await buildCidadeTabelaMessage(players, 0, cidadeGuildSettings, client);
                 return await interaction.editReply(payload);
             } catch (err) {
                 console.error('Erro ao gerar tabela da cidade:', err);
@@ -1001,7 +981,7 @@ client.on('interactionCreate', async interaction => {
                     { name: '🏦 Banco', value: `\`${userObj.bank.toLocaleString()} moedas\``, inline: true },
                     { name: '💰 Património Total', value: `\`${total.toLocaleString()} moedas\``, inline: false }
                 )
-                .setColor(COLOR_MAP[cidadeDb.settings.tabelaCor] || 0xF1C40F)
+                .setColor(COLOR_MAP[cidadeGuildSettings.tabelaCor] || 0xF1C40F)
                 .setTimestamp();
 
             return await interaction.reply({ embeds: [embed] });
@@ -1131,7 +1111,7 @@ client.on('interactionCreate', async interaction => {
             }
 
             try {
-                const payload = await buildCidadeTabelaMessage(players, newPage, cidadeDb.settings, client);
+                const payload = await buildCidadeTabelaMessage(players, newPage, cidadeGuildSettings, client);
                 return await interaction.editReply(payload);
             } catch (err) {
                 console.error('Erro ao paginar tabela cidade:', err);
@@ -1240,15 +1220,15 @@ client.on('interactionCreate', async interaction => {
                 .setCustomId('select_cor_tabela')
                 .setPlaceholder('🎨 Selecione a cor de fundo/detalhe...')
                 .addOptions([
-                    { label: 'Lavanda', value: 'lavanda', description: 'Tom roxo suave' },
-                    { label: 'Azul', value: 'azul', description: 'Azul clássico' },
-                    { label: 'Dourado', value: 'dourado', description: 'Amarelo dourado premium' },
-                    { label: 'Verde', value: 'verde', description: 'Verde esmeralda' },
-                    { label: 'Cinza', value: 'cinza', description: 'Cinza escuro elegante' },
-                    { label: 'Branco', value: 'branco', description: 'Branco claro' },
-                    { label: 'Rosa', value: 'rosa', description: 'Rosa vibrante' },
-                    { label: 'Amarelo', value: 'amarelo', description: 'Amarelo vivo' },
-                    { label: 'Ciano', value: 'ciano', description: 'Azul ciano brilhante' }
+                    { label: 'Lavanda', value: 'lavanda' },
+                    { label: 'Azul', value: 'azul' },
+                    { label: 'Dourado', value: 'dourado' },
+                    { label: 'Verde', value: 'verde' },
+                    { label: 'Cinza', value: 'cinza' },
+                    { label: 'Branco', value: 'branco' },
+                    { label: 'Rosa', value: 'rosa' },
+                    { label: 'Amarelo', value: 'amarelo' },
+                    { label: 'Ciano', value: 'ciano' }
                 ]);
 
             const row = new ActionRowBuilder().addComponents(selectCor);
@@ -1310,71 +1290,68 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // --- SELECT MENUS DE CARGOS E CORES ---
+    // --- SELECT MENUS ---
     if (interaction.isRoleSelectMenu()) {
         if (interaction.customId === 'role_select_procurando') {
-            db.settings.cargoProcurando = interaction.values[0];
+            guildSettings.cargoProcurando = interaction.values[0];
             saveDB(db);
-            return await interaction.update({ content: `✅ Cargo de ping para desafios atualizado com sucesso para <@&${interaction.values[0]}>!`, components: [] });
+            return await interaction.update({ content: `✅ Cargo de ping atualizado para <@&${interaction.values[0]}>!`, components: [] });
         }
         if (interaction.customId === 'role_select_top1') {
-            db.settings.cargoTop1 = interaction.values[0];
+            guildSettings.cargoTop1 = interaction.values[0];
             saveDB(db);
             await atualizarCargosPodio(interaction.guild, db);
-            return await interaction.update({ content: `✅ Cargo de Top 1 atualizado para <@&${interaction.values[0]}> e aplicado ao líder atual!`, components: [] });
+            return await interaction.update({ content: `✅ Cargo de Top 1 atualizado para <@&${interaction.values[0]}>!`, components: [] });
         }
         if (interaction.customId === 'role_select_top2') {
-            db.settings.cargoTop2 = interaction.values[0];
+            guildSettings.cargoTop2 = interaction.values[0];
             saveDB(db);
             await atualizarCargosPodio(interaction.guild, db);
-            return await interaction.update({ content: `✅ Cargo de Top 2 atualizado para <@&${interaction.values[0]}> e aplicado!`, components: [] });
+            return await interaction.update({ content: `✅ Cargo de Top 2 atualizado para <@&${interaction.values[0]}>!`, components: [] });
         }
         if (interaction.customId === 'role_select_top3') {
-            db.settings.cargoTop3 = interaction.values[0];
+            guildSettings.cargoTop3 = interaction.values[0];
             saveDB(db);
             await atualizarCargosPodio(interaction.guild, db);
-            return await interaction.update({ content: `✅ Cargo de Top 3 atualizado para <@&${interaction.values[0]}> e aplicado!`, components: [] });
+            return await interaction.update({ content: `✅ Cargo de Top 3 atualizado para <@&${interaction.values[0]}>!`, components: [] });
         }
     }
 
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_cor_tabela') {
         const novaCor = interaction.values[0];
-        db.settings.ligaCor = novaCor;
+        guildSettings.ligaCor = novaCor;
         saveDB(db);
-        return await interaction.update({ content: `✅ Cor de fundo da tabela alterada com sucesso para **${novaCor.toUpperCase()}**!`, components: [] });
+        return await interaction.update({ content: `✅ Cor de fundo da tabela alterada para **${novaCor.toUpperCase()}**!`, components: [] });
     }
 
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_cidade_cor') {
         const novaCor = interaction.values[0];
-        cidadeDb.settings.tabelaCor = novaCor;
+        cidadeGuildSettings.tabelaCor = novaCor;
         saveCidadeDB(cidadeDb);
-        return await interaction.update({ content: `✅ Cor temática da cidade alterada com sucesso para **${novaCor.toUpperCase()}**!`, components: [] });
+        return await interaction.update({ content: `✅ Cor temática da cidade alterada para **${novaCor.toUpperCase()}**!`, components: [] });
     }
 
     // --- MODAIS ---
     if (interaction.isModalSubmit()) {
         if (interaction.customId === 'modal_mudar_titulo') {
             const novoTitulo = interaction.fields.getTextInputValue('input_novo_titulo');
-            db.settings.ligaNome = novoTitulo;
+            guildSettings.ligaNome = novoTitulo;
             saveDB(db);
-            return await interaction.reply({ content: `✅ Título da liga atualizado com sucesso para: \`${novoTitulo}\``, ephemeral: true });
+            return await interaction.reply({ content: `✅ Título da liga atualizado para: \`${novoTitulo}\``, ephemeral: true });
         }
 
         if (interaction.customId === 'modal_nova_liga') {
             const novoNome = interaction.fields.getTextInputValue('input_nome_nova_liga');
             db.players = {};
-            db.settings.ligaNome = novoNome;
+            guildSettings.ligaNome = novoNome;
             saveDB(db);
             await atualizarCargosPodio(interaction.guild, db);
-            return await interaction.reply({ 
-                content: `🚨 **Nova liga criada com sucesso!**\n• A tabela anterior foi limpa.\n• **Nome da Nova Liga:** \`${novoNome}\``, 
-                ephemeral: true 
-            });
+            return await interaction.reply({ content: `🚨 **Nova liga criada!** Nome: \`${novoNome}\``, ephemeral: true });
         }
 
         if (interaction.customId === 'modal_cidade_titulo') {
             const novoTitulo = interaction.fields.getTextInputValue('input_novo_titulo');
-            cidadeDb.settings.tabelaNome = novoTitulo;
+            cidadeGuildSettings.tabelaNome = novoTitulo;
             saveCidadeDB(cidadeDb);
             return await interaction.reply({ content: `✅ Título da tabela da cidade atualizado para: \`${novoTitulo}\``, ephemeral: true });
         }
@@ -1393,7 +1370,7 @@ client.on('interactionCreate', async interaction => {
             if (userObj.bank < 0) userObj.bank = 0;
             saveCidadeDB(cidadeDb);
 
-            return await interaction.reply({ content: `✅ Saldo do banco do usuário \`${targetId}\` atualizado! Novo saldo: **${userObj.bank.toLocaleString()} moedas**.`, ephemeral: true });
+            return await interaction.reply({ content: `✅ Saldo atualizado com sucesso! Novo saldo no banco: **${userObj.bank.toLocaleString()} moedas**.`, ephemeral: true });
         }
     }
 
@@ -1436,7 +1413,7 @@ client.on('interactionCreate', async interaction => {
             .setStyle(ButtonStyle.Success);
 
         const row = new ActionRowBuilder().addComponents(btnAccept);
-        const cargoPing = db.settings.cargoProcurando;
+        const cargoPing = guildSettings.cargoProcurando;
         const content = cargoPing ? `<@&${cargoPing}>` : '';
 
         await interaction.channel.send({ content, embeds: [embed], components: [row] });
@@ -1455,7 +1432,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         try {
-            const payload = await buildTabelaMessage(players, newPage, db.settings);
+            const payload = await buildTabelaMessage(players, newPage, guildSettings);
             return await interaction.editReply(payload);
         } catch (err) {
             console.error('Erro ao paginar tabela:', err);
@@ -1502,13 +1479,13 @@ client.on('interactionCreate', async interaction => {
                 .setCustomId(`resultado_1v1_${challengerId}_${interaction.user.id}`)
                 .setPlaceholder('Selecione o resultado exato do confronto...')
                 .addOptions([
-                    { label: 'Desafiante (1-0)', value: 'desafiante_1_0', description: 'Desafiante venceu por 1 a 0' },
-                    { label: 'Adversário (1-0)', value: 'adversario_1_0', description: 'Adversário venceu por 1 a 0' },
-                    { label: 'Desafiante (2-1)', value: 'desafiante_2_1', description: 'Desafiante venceu por 2 a 1' },
-                    { label: 'Desafiante (2-0)', value: 'desafiante_2_0', description: 'Desafiante venceu por 2 a 0' },
-                    { label: 'Adversário (2-1)', value: 'adversario_2_1', description: 'Adversário venceu por 2 a 1' },
-                    { label: 'Adversário (2-0)', value: 'adversario_2_0', description: 'Adversário venceu por 2 a 0' },
-                    { label: 'Empate Ambos', value: 'empate', description: 'A partida terminou em empate (+10 pts para cada)' }
+                    { label: 'Desafiante (1-0)', value: 'desafiante_1_0' },
+                    { label: 'Adversário (1-0)', value: 'adversario_1_0' },
+                    { label: 'Desafiante (2-1)', value: 'desafiante_2_1' },
+                    { label: 'Desafiante (2-0)', value: 'desafiante_2_0' },
+                    { label: 'Adversário (2-1)', value: 'adversario_2_1' },
+                    { label: 'Adversário (2-0)', value: 'adversario_2_0' },
+                    { label: 'Empate Ambos', value: 'empate' }
                 ]);
 
             const btnCancel = new ButtonBuilder()
@@ -1540,7 +1517,7 @@ client.on('interactionCreate', async interaction => {
                 try {
                     const fetchedChannel = await client.channels.fetch(thread.id).catch(() => null);
                     if (fetchedChannel) {
-                        await fetchedChannel.send('⚠️ O tempo limite de 2 horas expirou. O desafio foi cancelado automaticamente por inatividade.');
+                        await fetchedChannel.send('⚠️ O tempo limite de 2 horas expirou. O desafio foi cancelado automaticamente.');
                         setTimeout(async () => { try { await fetchedChannel.delete(); } catch (e) {} }, 5000);
                     }
                     const starterMessage = await interaction.channel.messages.fetch(interaction.message.id).catch(() => null);
