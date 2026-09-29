@@ -852,7 +852,12 @@ client.once('ready', async () => {
         new SlashCommandBuilder()
             .setName('rob')
             .setDescription('Tenta roubar moedas de outro cidadão')
-            .addUserOption(option => option.setName('usuario').setDescription('Cidadão a ser roubado').setRequired(true))
+            .addUserOption(option => option.setName('usuario').setDescription('Cidadão a ser roubado').setRequired(true)),
+        new SlashCommandBuilder()
+            .setName('pay')
+            .setDescription('Transfere moedas para outro cidadão')
+            .addUserOption(option => option.setName('user').setDescription('Utilizador para quem vai enviar as moedas').setRequired(true))
+            .addStringOption(option => option.setName('quantidade').setDescription('Quantidade numérica ou "all"').setRequired(true))
     ];
 
     const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -1123,21 +1128,21 @@ client.on('interactionCreate', async interaction => {
 
             const workMessages = [
                 `matou um top br e ganhou **${coins.toLocaleString()}** moedas`,
-                `hackeou os computadores do Facility e recolheu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `escapou da Besta no mapa Aeroporto e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `salvou um sobrevivente na cápsula do Homestead e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `ganhou um 1v1 épico na prisão abandonada e obteve <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `escapou da besta no mapa arcade e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `deu jukes na besta e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `hackeou todos os computadores sozinho em Abandoned Facility e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `venceu a rodada como sobrevivente e obteve <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `completou a missão noturna no mapa Facility e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`
+                `hackeou os computadores de Facility e recolheu **${coins.toLocaleString()}** moedas`,
+                `escapou da Besta no mapa Airport e faturou **${coins.toLocaleString()}** moedas`,
+                `resgatou um companheiro na cadeira em Homestead e ganhou **${coins.toLocaleString()}** moedas`,
+                `ganhou um 1v1 épico na prisão abandonada e obteve **${coins.toLocaleString()}** moedas`,
+                `encontrou uma saída secreta no mapa Arcade e recolheu **${coins.toLocaleString()}** moedas`,
+                `conseguiu atordoar a Besta com o martelo e ganhou **${coins.toLocaleString()}** moedas`,
+                `consertou todos os computadores sozinho em Abandoned Facility e faturou **${coins.toLocaleString()}** moedas`,
+                `venceu a rodada como sobrevivente mestre e obteve **${coins.toLocaleString()}** moedas`,
+                `completou a missão noturna no mapa Facility e ganhou **${coins.toLocaleString()}** moedas`
             ];
 
             const randomMsg = workMessages[Math.floor(Math.random() * workMessages.length)];
             const embed = new EmbedBuilder()
-                .setTitle('<:wallet:1554579680219373611> Trabalho - Flee the Facility')
-                .setDescription(`<:profile:1554579406088044608> <@${userId}> ${randomMsg}! (Dinheiro foi para a carteira )`)
+                .setTitle('💼 Trabalho - Flee the Facility')
+                .setDescription(`👤 <@${userId}>${randomMsg}! (Dinheiro foi para a carteira 🪙)`)
                 .setColor(0x2ECC71);
 
             return await interaction.reply({ embeds: [embed] });
@@ -1165,22 +1170,22 @@ client.on('interactionCreate', async interaction => {
             saveCidadeDB(cidadeDb);
 
             const jobMessages = [
-                `trabalhou atendendo pacientes no hospital e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `entregou encomendas urgentes pela cidade e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `trabalhou como segurança noturno no banco central e recebeu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `consertou encanamentos na prefeitura e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `trabalhou como chef num restaurante famoso e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `deu aulas particulares de programação e recebeu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `trabalhou na oficina mecânica consertando carros e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `organizou o estoque do supermercado local e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `trabalhou como motorista de aplicativo e acumulou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `pintou murais artísticos nas ruas da cidade e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`
+                `trabalhou atendendo pacientes no hospital e ganhou **${coins.toLocaleString()}** moedas`,
+                `entregou encomendas urgentes pela cidade e ganhou **${coins.toLocaleString()}** moedas`,
+                `trabalhou como segurança noturno no banco central e recebeu **${coins.toLocaleString()}** moedas`,
+                `consertou encanamentos na prefeitura e faturou **${coins.toLocaleString()}** moedas`,
+                `trabalhou como chef num restaurante famoso e ganhou **${coins.toLocaleString()}** moedas`,
+                `deu aulas particulares de programação e recebeu **${coins.toLocaleString()}** moedas`,
+                `trabalhou na oficina mecânica consertando carros e faturou **${coins.toLocaleString()}** moedas`,
+                `organizou o estoque do supermercado local e ganhou **${coins.toLocaleString()}** moedas`,
+                `trabalhou como motorista de aplicativo e acumulou **${coins.toLocaleString()}** moedas`,
+                `pintou murais artísticos nas ruas da cidade e faturou **${coins.toLocaleString()}** moedas`
             ];
 
             const randomMsg = jobMessages[Math.floor(Math.random() * jobMessages.length)];
             const embed = new EmbedBuilder()
-                .setTitle('<:slaa:1554584672741359616> Emprego Diário')
-                .setDescription(`<:profile:1554579406088044608> <@${userId}> ${randomMsg}! (Dinheiro foi para a carteira )`)
+                .setTitle('👷 Emprego Diário')
+                .setDescription(`👤 <@${userId}>${randomMsg}! (Dinheiro foi para a carteira 🪙)`)
                 .setColor(0x3498DB);
 
             return await interaction.reply({ embeds: [embed] });
@@ -1251,7 +1256,7 @@ client.on('interactionCreate', async interaction => {
             const btnResgatar = new ButtonBuilder()
                 .setCustomId(`resgatar_daily_${userId}_${coins}`)
                 .setLabel('Resgatar Daily')
-                .setEmoji('1554580179488079884')
+                .setEmoji('🎁')
                 .setStyle(ButtonStyle.Success);
 
             const row = new ActionRowBuilder().addComponents(btnResgatar);
@@ -1269,7 +1274,7 @@ client.on('interactionCreate', async interaction => {
                 const attachment = new AttachmentBuilder(buffer, { name: `moneyinfo_${targetUser.username}.png` });
 
                 const embed = new EmbedBuilder()
-                    .setTitle(`<:estati:1554577205332283473> Informações Financeiras - ${targetUser.username}`)
+                    .setTitle(`📊 Informações Financeiras - ${targetUser.username}`)
                     .setColor(COLOR_MAP[cidadeGuildData.settings.tabelaCor] || 0xF1C40F)
                     .setImage(`attachment://moneyinfo_${targetUser.username}.png`)
                     .setTimestamp();
@@ -1306,7 +1311,7 @@ client.on('interactionCreate', async interaction => {
             saveCidadeDB(cidadeDb);
 
             const embed = new EmbedBuilder()
-                .setTitle('<a:verificado:1554216178111610932> Depósito Realizado')
+                .setTitle('🏦 Depósito Realizado')
                 .setDescription(`Depositaste com sucesso **${amountToDep.toLocaleString()}** moedas no banco! Agora estão seguras contra roubos.`)
                 .setColor(0x2ECC71);
 
@@ -1366,6 +1371,72 @@ client.on('interactionCreate', async interaction => {
                     .setColor(0xE74C3C);
                 return await interaction.reply({ embeds: [embed] });
             }
+        }
+
+        if (commandName === 'pay') {
+            const senderId = interaction.user.id;
+            const targetUser = interaction.options.getUser('user');
+            const arg = interaction.options.getString('quantidade').toLowerCase();
+
+            if (targetUser.id === senderId) {
+                return await interaction.reply({ content: '❌ Não podes transferir moedas para ti próprio!', ephemeral: true });
+            }
+            if (targetUser.bot) {
+                return await interaction.reply({ content: '❌ Não podes transferir moedas para um bot!', ephemeral: true });
+            }
+
+            const senderObj = ensureCidadeUser(senderId);
+            const targetObj = ensureCidadeUser(targetUser.id);
+
+            const totalSenderMoney = (senderObj.wallet || 0) + (senderObj.bank || 0);
+            if (totalSenderMoney <= 0) {
+                return await interaction.reply({ content: '❌ Não tens saldo disponível (nem na carteira, nem no banco) para realizar uma transferência!', ephemeral: true });
+            }
+
+            let amountToPay = 0;
+            if (arg === 'all') {
+                amountToPay = totalSenderMoney;
+            } else {
+                const parsed = parseInt(arg, 10);
+                if (isNaN(parsed) || parsed <= 0) {
+                    return await interaction.reply({ content: '❌ Insere um valor numérico válido ou "all".', ephemeral: true });
+                }
+                amountToPay = parsed;
+            }
+
+            if (amountToPay > totalSenderMoney) {
+                return await interaction.reply({ content: `❌ Não tens saldo suficiente! O teu património total é de **${totalSenderMoney.toLocaleString()}** moedas.`, ephemeral: true });
+            }
+
+            // Deduzir da carteira primeiro, se faltar retira do banco
+            let takenFromWallet = 0;
+            let takenFromBank = 0;
+
+            if (senderObj.wallet >= amountToPay) {
+                senderObj.wallet -= amountToPay;
+                takenFromWallet = amountToPay;
+            } else {
+                takenFromWallet = senderObj.wallet;
+                senderObj.wallet = 0;
+                takenFromBank = amountToPay - takenFromWallet;
+                senderObj.bank -= takenFromBank;
+            }
+
+            // O valor transferido vai para a carteira de quem recebe
+            targetObj.wallet = (targetObj.wallet || 0) + amountToPay;
+            saveCidadeDB(cidadeDb);
+
+            const embed = new EmbedBuilder()
+                .setTitle('💸 Transferência Concluída')
+                .setDescription(`<a:verificado:1554216178111610932> **${interaction.user.username}** enviou com sucesso **${amountToPay.toLocaleString()}** moedas para **${targetUser.username}**!`)
+                .addFields(
+                    { name: '🪙 Retirado da Carteira', value: `${takenFromWallet.toLocaleString()} moedas`, inline: true },
+                    { name: '🏦 Retirado do Banco', value: `${takenFromBank.toLocaleString()} moedas`, inline: true }
+                )
+                .setColor(0x2ECC71)
+                .setTimestamp();
+
+            return await interaction.reply({ embeds: [embed] });
         }
     }
 
@@ -1612,7 +1683,6 @@ client.on('interactionCreate', async interaction => {
                 const row = new ActionRowBuilder().addComponents(selectMenu);
 
                 await channel.send({ embeds: [embedPanel], components: [row] });
-                // Removido o ephemeral: true conforme solicitado
                 return await interaction.reply({ content: `✅ Painel em Embed de tickets enviado com sucesso para <#${cfg.canalEnvio}>!` });
             }
         }
