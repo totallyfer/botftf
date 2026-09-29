@@ -1051,7 +1051,6 @@ client.on('interactionCreate', async interaction => {
                     new ButtonBuilder().setCustomId('ticket_enviar_painel').setLabel('Enviar Painel Embed').setStyle(ButtonStyle.Success).setEmoji('🚀')
                 );
 
-                // Removido o ephemeral: true conforme solicitado
                 return await interaction.reply({ embeds: [embed], components: [row1, row2] });
             }
 
@@ -1127,22 +1126,22 @@ client.on('interactionCreate', async interaction => {
             saveCidadeDB(cidadeDb);
 
             const workMessages = [
-                `matou um top br e ganhou **${coins.toLocaleString()}** moedas`,
-                `hackeou os computadores de Facility e recolheu **${coins.toLocaleString()}** moedas`,
-                `escapou da Besta no mapa Airport e faturou **${coins.toLocaleString()}** moedas`,
-                `resgatou um companheiro na cadeira em Homestead e ganhou **${coins.toLocaleString()}** moedas`,
-                `ganhou um 1v1 épico na prisão abandonada e obteve **${coins.toLocaleString()}** moedas`,
-                `encontrou uma saída secreta no mapa Arcade e recolheu **${coins.toLocaleString()}** moedas`,
-                `conseguiu atordoar a Besta com o martelo e ganhou **${coins.toLocaleString()}** moedas`,
-                `consertou todos os computadores sozinho em Abandoned Facility e faturou **${coins.toLocaleString()}** moedas`,
-                `venceu a rodada como sobrevivente mestre e obteve **${coins.toLocaleString()}** moedas`,
-                `completou a missão noturna no mapa Facility e ganhou **${coins.toLocaleString()}** moedas`
+                `matou um top br e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `hackeou os computadores de Facility e recolheu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `escapou da Besta no mapa Airport e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `resgatou um companheiro na cadeira em Homestead e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `ganhou um 1v1 épico na prisão abandonada e obteve <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `encontrou uma saída secreta no mapa Arcade e recolheu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `conseguiu atordoar a Besta com o martelo e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `consertou todos os computadores sozinho em Abandoned Facility e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `venceu a rodada como sobrevivente mestre e obteve <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `completou a missão noturna no mapa Facility e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`
             ];
 
             const randomMsg = workMessages[Math.floor(Math.random() * workMessages.length)];
             const embed = new EmbedBuilder()
-                .setTitle('💼 Trabalho - Flee the Facility')
-                .setDescription(`👤 <@${userId}>${randomMsg}! (Dinheiro foi para a carteira 🪙)`)
+                .setTitle('<:wallet:1554579680219373611> Trabalho - Flee the Facility')
+                .setDescription(`<:profile:1554579406088044608> <@${userId}>${randomMsg}! (Dinheiro foi para a carteira <:moeda:1554577755121917994>)`)
                 .setColor(0x2ECC71);
 
             return await interaction.reply({ embeds: [embed] });
@@ -1170,22 +1169,22 @@ client.on('interactionCreate', async interaction => {
             saveCidadeDB(cidadeDb);
 
             const jobMessages = [
-                `trabalhou atendendo pacientes no hospital e ganhou **${coins.toLocaleString()}** moedas`,
-                `entregou encomendas urgentes pela cidade e ganhou **${coins.toLocaleString()}** moedas`,
-                `trabalhou como segurança noturno no banco central e recebeu **${coins.toLocaleString()}** moedas`,
-                `consertou encanamentos na prefeitura e faturou **${coins.toLocaleString()}** moedas`,
-                `trabalhou como chef num restaurante famoso e ganhou **${coins.toLocaleString()}** moedas`,
-                `deu aulas particulares de programação e recebeu **${coins.toLocaleString()}** moedas`,
-                `trabalhou na oficina mecânica consertando carros e faturou **${coins.toLocaleString()}** moedas`,
-                `organizou o estoque do supermercado local e ganhou **${coins.toLocaleString()}** moedas`,
-                `trabalhou como motorista de aplicativo e acumulou **${coins.toLocaleString()}** moedas`,
-                `pintou murais artísticos nas ruas da cidade e faturou **${coins.toLocaleString()}** moedas`
+                `trabalhou atendendo pacientes no hospital e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `entregou encomendas urgentes pela cidade e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou como segurança noturno no banco central e recebeu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `consertou encanamentos na prefeitura e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou como chef num restaurante famoso e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `deu aulas particulares de programação e recebeu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou na oficina mecânica consertando carros e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `organizou o estoque do supermercado local e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou como motorista de aplicativo e acumulou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `pintou murais artísticos nas ruas da cidade e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`
             ];
 
             const randomMsg = jobMessages[Math.floor(Math.random() * jobMessages.length)];
             const embed = new EmbedBuilder()
-                .setTitle('👷 Emprego Diário')
-                .setDescription(`👤 <@${userId}>${randomMsg}! (Dinheiro foi para a carteira 🪙)`)
+                .setTitle('<:slaa:1554584672741359616> Emprego Diário')
+                .setDescription(`<:profile:1554579406088044608> <@${userId}>${randomMsg}! (Dinheiro foi para a carteira <:moeda:1554577755121917994>)`)
                 .setColor(0x3498DB);
 
             return await interaction.reply({ embeds: [embed] });
@@ -1216,7 +1215,7 @@ client.on('interactionCreate', async interaction => {
                 saveCidadeDB(cidadeDb);
                 const embed = new EmbedBuilder()
                     .setTitle('🎰 Arriscar a Sorte')
-                    .setDescription(`🎉 Deu bom! <@${userId}> arriscou nos becos escuros e faturou **${coins.toLocaleString()}** moedas para a carteira!`)
+                    .setDescription(`🎉 Deu bom! <@${userId}> arriscou nos becos escuros e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas para a carteira!`)
                     .setColor(0x2ECC71);
                 return await interaction.reply({ embeds: [embed] });
             } else {
@@ -1225,7 +1224,7 @@ client.on('interactionCreate', async interaction => {
                 saveCidadeDB(cidadeDb);
                 const embed = new EmbedBuilder()
                     .setTitle('🎰 Arriscar a Sorte')
-                    .setDescription(`💸 Deu ruim! <@${userId}> foi pego pela polícia ou caiu numa armadilha e perdeu **${loss.toLocaleString()}** moedas da carteira!`)
+                    .setDescription(`💸 Deu ruim! <@${userId}> foi pego pela polícia ou caiu numa armadilha e perdeu <:moeda:1554577755121917994> **${loss.toLocaleString()}** moedas da carteira!`)
                     .setColor(0xE74C3C);
                 return await interaction.reply({ embeds: [embed] });
             }
@@ -1250,13 +1249,13 @@ client.on('interactionCreate', async interaction => {
 
             const embed = new EmbedBuilder()
                 .setTitle('🎁 Recompensa Diária')
-                .setDescription(`Clica no botão abaixo para resgatar o teu prêmio diário aleatório de **${coins.toLocaleString()}** moedas!`)
+                .setDescription(`Clica no botão abaixo para resgatar o teu prêmio diário aleatório de <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas!`)
                 .setColor(0xF1C40F);
 
             const btnResgatar = new ButtonBuilder()
                 .setCustomId(`resgatar_daily_${userId}_${coins}`)
                 .setLabel('Resgatar Daily')
-                .setEmoji('🎁')
+                .setEmoji('1554580179488079884')
                 .setStyle(ButtonStyle.Success);
 
             const row = new ActionRowBuilder().addComponents(btnResgatar);
@@ -1274,7 +1273,7 @@ client.on('interactionCreate', async interaction => {
                 const attachment = new AttachmentBuilder(buffer, { name: `moneyinfo_${targetUser.username}.png` });
 
                 const embed = new EmbedBuilder()
-                    .setTitle(`📊 Informações Financeiras - ${targetUser.username}`)
+                    .setTitle(`<:estati:1554577205332283473> Informações Financeiras - ${targetUser.username}`)
                     .setColor(COLOR_MAP[cidadeGuildData.settings.tabelaCor] || 0xF1C40F)
                     .setImage(`attachment://moneyinfo_${targetUser.username}.png`)
                     .setTimestamp();
@@ -1311,8 +1310,8 @@ client.on('interactionCreate', async interaction => {
             saveCidadeDB(cidadeDb);
 
             const embed = new EmbedBuilder()
-                .setTitle('🏦 Depósito Realizado')
-                .setDescription(`Depositaste com sucesso **${amountToDep.toLocaleString()}** moedas no banco! Agora estão seguras contra roubos.`)
+                .setTitle('<a:verificado:1554216178111610932> Depósito Realizado')
+                .setDescription(`Depositaste com sucesso <:moeda:1554577755121917994> **${amountToDep.toLocaleString()}** moedas no banco! Agora estão seguras contra roubos.`)
                 .setColor(0x2ECC71);
 
             return await interaction.reply({ embeds: [embed] });
@@ -1346,7 +1345,7 @@ client.on('interactionCreate', async interaction => {
 
                 const embed = new EmbedBuilder()
                     .setTitle('🥷 Assalto Bem-Sucedido!')
-                    .setDescription(`Fizeste uma operação limpa! Roubaste **${stolenAmount.toLocaleString()}** moedas da carteira de **${targetUser.username}**!`)
+                    .setDescription(`Fizeste uma operação limpa! Roubaste <:moeda:1554577755121917994> **${stolenAmount.toLocaleString()}** moedas da carteira de **${targetUser.username}**!`)
                     .setColor(0x2ECC71);
                 return await interaction.reply({ embeds: [embed] });
             } else {
@@ -1367,7 +1366,7 @@ client.on('interactionCreate', async interaction => {
 
                 const embed = new EmbedBuilder()
                     .setTitle('🚨 Assalto Fracassado!')
-                    .setDescription(`Foste pego em flagrante tentando roubar **${targetUser.username}**! Tiveste de pagar uma penalidade de **30%** do teu dinheiro (**${penalty.toLocaleString()}** moedas), que foi direto para a vítima!`)
+                    .setDescription(`Foste pego em flagrante tentando roubar **${targetUser.username}**! Tiveste de pagar uma penalidade de **30%** do teu dinheiro (<:moeda:1554577755121917994> **${penalty.toLocaleString()}** moedas), que foi direto para a vítima!`)
                     .setColor(0xE74C3C);
                 return await interaction.reply({ embeds: [embed] });
             }
@@ -1405,10 +1404,9 @@ client.on('interactionCreate', async interaction => {
             }
 
             if (amountToPay > totalSenderMoney) {
-                return await interaction.reply({ content: `❌ Não tens saldo suficiente! O teu património total é de **${totalSenderMoney.toLocaleString()}** moedas.`, ephemeral: true });
+                return await interaction.reply({ content: `❌ Não tens saldo suficiente! O teu património total é de <:moeda:1554577755121917994> **${totalSenderMoney.toLocaleString()}** moedas.`, ephemeral: true });
             }
 
-            // Deduzir da carteira primeiro, se faltar retira do banco
             let takenFromWallet = 0;
             let takenFromBank = 0;
 
@@ -1422,16 +1420,15 @@ client.on('interactionCreate', async interaction => {
                 senderObj.bank -= takenFromBank;
             }
 
-            // O valor transferido vai para a carteira de quem recebe
             targetObj.wallet = (targetObj.wallet || 0) + amountToPay;
             saveCidadeDB(cidadeDb);
 
             const embed = new EmbedBuilder()
                 .setTitle('💸 Transferência Concluída')
-                .setDescription(`<a:verificado:1554216178111610932> **${interaction.user.username}** enviou com sucesso **${amountToPay.toLocaleString()}** moedas para **${targetUser.username}**!`)
+                .setDescription(`<a:verificado:1554216178111610932> **${interaction.user.username}** enviou com sucesso <:moeda:1554577755121917994> **${amountToPay.toLocaleString()}** moedas para **${targetUser.username}**!`)
                 .addFields(
-                    { name: '🪙 Retirado da Carteira', value: `${takenFromWallet.toLocaleString()} moedas`, inline: true },
-                    { name: '🏦 Retirado do Banco', value: `${takenFromBank.toLocaleString()} moedas`, inline: true }
+                    { name: '<:wallet:1554579680219373611> Retirado da Carteira', value: `<:moeda:1554577755121917994> ${takenFromWallet.toLocaleString()} moedas`, inline: true },
+                    { name: '🏦 Retirado do Banco', value: `<:moeda:1554577755121917994> ${takenFromBank.toLocaleString()} moedas`, inline: true }
                 )
                 .setColor(0x2ECC71)
                 .setTimestamp();
@@ -1457,7 +1454,7 @@ client.on('interactionCreate', async interaction => {
             saveCidadeDB(cidadeDb);
 
             await interaction.update({
-                content: `✅ Resgataste com sucesso a tua recompensa diária de **${coins.toLocaleString()}** moedas para a carteira!`,
+                content: `✅ Resgataste com sucesso a tua recompensa diária de <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas para a carteira!`,
                 embeds: [],
                 components: []
             });
@@ -2077,7 +2074,7 @@ client.on('interactionCreate', async interaction => {
             if (userObj.bank < 0) userObj.bank = 0;
             saveCidadeDB(cidadeDb);
 
-            return await interaction.reply({ content: `✅ Saldo atualizado com sucesso neste servidor! Novo saldo no banco: **${userObj.bank.toLocaleString()} moedas**.`, ephemeral: true });
+            return await interaction.reply({ content: `✅ Saldo atualizado com sucesso neste servidor! Novo saldo no banco: <:moeda:1554577755121917994> **${userObj.bank.toLocaleString()} moedas**.`, ephemeral: true });
         }
     }
 
