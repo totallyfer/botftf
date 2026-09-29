@@ -1017,12 +1017,12 @@ client.on('interactionCreate', async interaction => {
                 const channelText = cfg.canalEnvio ? `<#${cfg.canalEnvio}>` : '`Não definido`';
 
                 const embed = new EmbedBuilder()
-                    .setTitle('<:trabalho:1554582405363400744> Painel Administrativo - Sistema de Tickets')
+                    .setTitle('<:slaa:1554584672741359616> Painel Administrativo - Sistema de Tickets')
                     .setDescription(
                         `Configure e envie o painel de atendimento em embed para o servidor.\n\n` +
                         `<:sla:1554222927476691064> **Título Atual:** \`${cfg.titulo}\`\n` +
                         `<:analise:1554217532435595505> **Descrição:** \`${cfg.descricao}\`\n` +
-                        `<:trabalho:1554582405363400744> **Cargo da Staff:** ${staffRoleText}\n` +
+                        `<:slaa:1554584672741359616> **Cargo da Staff:** ${staffRoleText}\n` +
                         `<a:verificado:1554216178111610932> **Canal de Envio:** ${channelText}\n` +
                         `<:anexo:1554583319650377750> **Banner Anexado:** \`${cfg.bannerUrl ? 'Sim' : 'Não'}\`\n` +
                         `<:engrenagem:1554223036948021249> **Opções do Menu:** \`${cfg.opcoes.length} categorias cadastradas\``
@@ -1179,7 +1179,7 @@ client.on('interactionCreate', async interaction => {
 
             const randomMsg = jobMessages[Math.floor(Math.random() * jobMessages.length)];
             const embed = new EmbedBuilder()
-                .setTitle('<:trabalho:1554582405363400744> Emprego Diário')
+                .setTitle('<:slaa:1554584672741359616> Emprego Diário')
                 .setDescription(`<:profile:1554579406088044608> <@${userId}> ${randomMsg}! (Dinheiro foi para a carteira )`)
                 .setColor(0x3498DB);
 
