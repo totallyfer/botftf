@@ -181,7 +181,7 @@ function getTicketGuildData(db, guildId) {
     return db.guilds[guildId];
 }
 
-// Cooldowns em memória
+// Cooldowns em memória (Isolados por Servidor usando chave "guildId_userId")
 const cidadeCooldowns = {
     work: new Map(),
     job: new Map(),
@@ -898,7 +898,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
             const players = await getRankedPlayers(guildData.players, client);
             if (players.length === 0) {
-                return await interaction.editReply({ content: '⚠️ Ainda não existem jogadores com pontuação positiva na tabela 1v1 deste servidor!' });
+                return await interaction.editReply({ content: '⚠️️ Ainda não existem jogadores com pontuação positiva na tabela 1v1 deste servidor!' });
             }
             try {
                 const payload = await buildTabelaMessage(players, 0, guildData.settings);
@@ -1010,7 +1010,6 @@ client.on('interactionCreate', async interaction => {
                     return await interaction.reply({ content: '❌ Apenas administradores ou moderadores podem aceder ao painel de tickets!', ephemeral: true });
                 }
 
-                // Captura banner caso tenha sido anexado no comando
                 const bannerAttachment = interaction.options.getAttachment('banner');
                 if (bannerAttachment) {
                     ticketGuildData.config.bannerUrl = bannerAttachment.url;
@@ -1106,11 +1105,13 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'work') {
             const userId = interaction.user.id;
+            const guildId = interaction.guildId;
+            const cooldownKey = `${guildId}_${userId}`;
             const now = Date.now();
             const cooldownTime = 10 * 60 * 1000;
 
-            if (cidadeCooldowns.work.has(userId)) {
-                const expiration = cidadeCooldowns.work.get(userId) + cooldownTime;
+            if (cidadeCooldowns.work.has(cooldownKey)) {
+                const expiration = cidadeCooldowns.work.get(cooldownKey) + cooldownTime;
                 if (now < expiration) {
                     const timeLeft = Math.ceil((expiration - now) / 1000);
                     const mins = Math.floor(timeLeft / 60);
@@ -1119,7 +1120,7 @@ client.on('interactionCreate', async interaction => {
                 }
             }
 
-            cidadeCooldowns.work.set(userId, now);
+            cidadeCooldowns.work.set(cooldownKey, now);
             const coins = Math.floor(Math.random() * (7000 - 1000 + 1)) + 1000;
             const userObj = ensureCidadeUser(userId);
             userObj.wallet += coins;
@@ -1149,11 +1150,13 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'job') {
             const userId = interaction.user.id;
+            const guildId = interaction.guildId;
+            const cooldownKey = `${guildId}_${userId}`;
             const now = Date.now();
             const cooldownTime = 10 * 60 * 1000;
 
-            if (cidadeCooldowns.job.has(userId)) {
-                const expiration = cidadeCooldowns.job.get(userId) + cooldownTime;
+            if (cidadeCooldowns.job.has(cooldownKey)) {
+                const expiration = cidadeCooldowns.job.get(cooldownKey) + cooldownTime;
                 if (now < expiration) {
                     const timeLeft = Math.ceil((expiration - now) / 1000);
                     const mins = Math.floor(timeLeft / 60);
@@ -1162,7 +1165,7 @@ client.on('interactionCreate', async interaction => {
                 }
             }
 
-            cidadeCooldowns.job.set(userId, now);
+            cidadeCooldowns.job.set(cooldownKey, now);
             const coins = Math.floor(Math.random() * (7000 - 1000 + 1)) + 1000;
             const userObj = ensureCidadeUser(userId);
             userObj.wallet += coins;
@@ -1192,11 +1195,13 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'slut') {
             const userId = interaction.user.id;
+            const guildId = interaction.guildId;
+            const cooldownKey = `${guildId}_${userId}`;
             const now = Date.now();
             const cooldownTime = 10 * 60 * 1000;
 
-            if (cidadeCooldowns.slut.has(userId)) {
-                const expiration = cidadeCooldowns.slut.get(userId) + cooldownTime;
+            if (cidadeCooldowns.slut.has(cooldownKey)) {
+                const expiration = cidadeCooldowns.slut.get(cooldownKey) + cooldownTime;
                 if (now < expiration) {
                     const timeLeft = Math.ceil((expiration - now) / 1000);
                     const mins = Math.floor(timeLeft / 60);
@@ -1205,7 +1210,7 @@ client.on('interactionCreate', async interaction => {
                 }
             }
 
-            cidadeCooldowns.slut.set(userId, now);
+            cidadeCooldowns.slut.set(cooldownKey, now);
             const userObj = ensureCidadeUser(userId);
             const success = Math.random() < 0.5;
 
@@ -1232,11 +1237,13 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'daily') {
             const userId = interaction.user.id;
+            const guildId = interaction.guildId;
+            const cooldownKey = `${guildId}_${userId}`;
             const now = Date.now();
             const cooldownTime = 24 * 60 * 60 * 1000;
 
-            if (cidadeCooldowns.daily.has(userId)) {
-                const expiration = cidadeCooldowns.daily.get(userId) + cooldownTime;
+            if (cidadeCooldowns.daily.has(cooldownKey)) {
+                const expiration = cidadeCooldowns.daily.get(cooldownKey) + cooldownTime;
                 if (now < expiration) {
                     const timeLeft = Math.ceil((expiration - now) / 1000);
                     const hours = Math.floor(timeLeft / 3600);
@@ -1443,12 +1450,14 @@ client.on('interactionCreate', async interaction => {
             const parts = interaction.customId.split('_');
             const userId = parts[2];
             const coins = parseInt(parts[3], 10);
+            const guildId = interaction.guildId;
+            const cooldownKey = `${guildId}_${userId}`;
 
             if (interaction.user.id !== userId) {
                 return await interaction.reply({ content: '❌ Este botão não é para ti!', ephemeral: true });
             }
 
-            cidadeCooldowns.daily.set(userId, Date.now());
+            cidadeCooldowns.daily.set(cooldownKey, Date.now());
             const userObj = ensureCidadeUser(userId);
             userObj.wallet += coins;
             saveCidadeDB(cidadeDb);
