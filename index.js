@@ -1017,15 +1017,15 @@ client.on('interactionCreate', async interaction => {
                 const channelText = cfg.canalEnvio ? `<#${cfg.canalEnvio}>` : '`Não definido`';
 
                 const embed = new EmbedBuilder()
-                    .setTitle('🎫 Painel Administrativo - Sistema de Tickets')
+                    .setTitle('<:trabalho:1554582405363400744> Painel Administrativo - Sistema de Tickets')
                     .setDescription(
                         `Configure e envie o painel de atendimento em embed para o servidor.\n\n` +
-                        `📌 **Título Atual:** \`${cfg.titulo}\`\n` +
-                        `📝 **Descrição:** \`${cfg.descricao}\`\n` +
-                        `🛡️ **Cargo da Staff:** ${staffRoleText}\n` +
-                        `📢 **Canal de Envio:** ${channelText}\n` +
-                        `🖼️ **Banner Anexado:** \`${cfg.bannerUrl ? 'Sim' : 'Não'}\`\n` +
-                        `📋 **Opções do Menu:** \`${cfg.opcoes.length} categorias cadastradas\``
+                        `<:sla:1554222927476691064> **Título Atual:** \`${cfg.titulo}\`\n` +
+                        `<:analise:1554217532435595505> **Descrição:** \`${cfg.descricao}\`\n` +
+                        `<:trabalho:1554582405363400744> **Cargo da Staff:** ${staffRoleText}\n` +
+                        `<a:verificado:1554216178111610932> **Canal de Envio:** ${channelText}\n` +
+                        `<:anexo:1554583319650377750> **Banner Anexado:** \`${cfg.bannerUrl ? 'Sim' : 'Não'}\`\n` +
+                        `<:engrenagem:1554223036948021249> **Opções do Menu:** \`${cfg.opcoes.length} categorias cadastradas\``
                     )
                     .setColor(0x3498DB)
                     .setTimestamp();
@@ -1165,22 +1165,22 @@ client.on('interactionCreate', async interaction => {
             saveCidadeDB(cidadeDb);
 
             const jobMessages = [
-                `trabalhou atendendo pacientes no hospital e ganhou **${coins.toLocaleString()}** moedas`,
-                `entregou encomendas urgentes pela cidade e ganhou **${coins.toLocaleString()}** moedas`,
-                `trabalhou como segurança noturno no banco central e recebeu **${coins.toLocaleString()}** moedas`,
-                `consertou encanamentos na prefeitura e faturou **${coins.toLocaleString()}** moedas`,
-                `trabalhou como chef num restaurante famoso e ganhou **${coins.toLocaleString()}** moedas`,
-                `deu aulas particulares de programação e recebeu **${coins.toLocaleString()}** moedas`,
-                `trabalhou na oficina mecânica consertando carros e faturou **${coins.toLocaleString()}** moedas`,
-                `organizou o estoque do supermercado local e ganhou **${coins.toLocaleString()}** moedas`,
-                `trabalhou como motorista de aplicativo e acumulou **${coins.toLocaleString()}** moedas`,
-                `pintou murais artísticos nas ruas da cidade e faturou **${coins.toLocaleString()}** moedas`
+                `trabalhou atendendo pacientes no hospital e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `entregou encomendas urgentes pela cidade e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou como segurança noturno no banco central e recebeu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `consertou encanamentos na prefeitura e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou como chef num restaurante famoso e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `deu aulas particulares de programação e recebeu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou na oficina mecânica consertando carros e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `organizou o estoque do supermercado local e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou como motorista de aplicativo e acumulou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `pintou murais artísticos nas ruas da cidade e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`
             ];
 
             const randomMsg = jobMessages[Math.floor(Math.random() * jobMessages.length)];
             const embed = new EmbedBuilder()
-                .setTitle('👷 Emprego Diário')
-                .setDescription(`<:profile:1554579406088044608> <@${userId}>${randomMsg}! (Dinheiro foi para a carteira 🪙)`)
+                .setTitle('<:trabalho:1554582405363400744> Emprego Diário')
+                .setDescription(`<:profile:1554579406088044608> <@${userId}> ${randomMsg}! (Dinheiro foi para a carteira )`)
                 .setColor(0x3498DB);
 
             return await interaction.reply({ embeds: [embed] });
