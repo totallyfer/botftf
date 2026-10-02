@@ -6,7 +6,15 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
-const { createCanvas } = require('@napi-rs/canvas');
+const { createCanvas, GlobalFonts } = require('@napi-rs/canvas');
+
+// --- Registo de Fonte Segura para a Discloud não falhar textos ---
+// Carrega uma fonte padrão do sistema Node Canvas se disponível, evitando texto invisível
+try {
+    GlobalFonts.registerFromPath(require.resolve('@napi-rs/canvas').replace('index.js', 'fonts/DejaVuSans.ttf'), 'Sans');
+} catch (e) {
+    // Fallback caso o caminho mude na versão instalada
+}
 
 // --- Servidor Web para manter ativo ---
 const app = express();
@@ -266,12 +274,12 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.fillRect(0, 146, canvas.width, 4);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px sans-serif';
+    ctx.font = 'bold 28px Sans, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('PAINEL FINANCEIRO', 180, 70);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.font = '14px sans-serif';
+    ctx.font = '14px Sans, sans-serif';
     ctx.fillText('Extrato de contas, carteira e património da cidade', 180, 95);
 
     ctx.fillStyle = selectedColor;
@@ -282,20 +290,19 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.beginPath();
     ctx.arc(100, 80, 48, 0, Math.PI * 2);
     ctx.fill();
-    // Emoji trocado por símbolo (canvas não renderiza emojis no Discloud)
-    ctx.fillStyle = selectedColor;
-    ctx.font = 'bold 40px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px Sans, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('$', 100, 94);
+    ctx.fillText('🪙', 100, 90);
 
     ctx.textAlign = 'right';
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 18px sans-serif';
+    ctx.font = 'bold 18px Sans, sans-serif';
     const username = member.displayName || member.username || 'Cidadão';
     ctx.fillText(`@${username.slice(0, 20)}`, canvas.width - 50, 70);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '12px sans-serif';
+    ctx.font = '12px Sans, sans-serif';
     ctx.fillText('STATUS: Cidadão Ativo', canvas.width - 50, 92);
 
     const wallet = userObj.wallet || 0;
@@ -319,17 +326,17 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     roundRect(ctx, startX + 25, cardY + 25, 45, 45, 10, true, false);
 
     ctx.fillStyle = '#a0a2ab';
-    ctx.font = 'bold 13px sans-serif';
+    ctx.font = 'bold 13px Sans, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('DINHEIRO EM MÃOS', startX + 25, cardY + 100);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px sans-serif';
+    ctx.font = 'bold 13px Sans, sans-serif';
     ctx.fillText('CARTEIRA', startX + 25, cardY + 118);
 
     ctx.fillStyle = '#2ecc71';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(`${wallet.toLocaleString()} moedas`, startX + 25, cardY + 175);
+    ctx.font = 'bold 22px Sans, sans-serif';
+    ctx.fillText(`🪙 ${wallet.toLocaleString()}`, startX + 25, cardY + 175);
 
     // Banco
     const x2 = startX + cardW + cardSpacing;
@@ -343,17 +350,17 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     roundRect(ctx, x2 + 25, cardY + 25, 45, 45, 10, true, false);
 
     ctx.fillStyle = '#a0a2ab';
-    ctx.font = 'bold 13px sans-serif';
+    ctx.font = 'bold 13px Sans, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('PROTEGIDO NO COFRE', x2 + 25, cardY + 100);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px sans-serif';
+    ctx.font = 'bold 13px Sans, sans-serif';
     ctx.fillText('BANCO CENTRAL', x2 + 25, cardY + 118);
 
     ctx.fillStyle = '#3498db';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(`${bank.toLocaleString()} moedas`, x2 + 25, cardY + 175);
+    ctx.font = 'bold 22px Sans, sans-serif';
+    ctx.fillText(`🏦 ${bank.toLocaleString()}`, x2 + 25, cardY + 175);
 
     // Património
     const x3 = x2 + cardW + cardSpacing;
@@ -367,17 +374,17 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     roundRect(ctx, x3 + 25, cardY + 25, 45, 45, 10, true, false);
 
     ctx.fillStyle = '#a0a2ab';
-    ctx.font = 'bold 13px sans-serif';
+    ctx.font = 'bold 13px Sans, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('SOMA GERAL', x3 + 25, cardY + 100);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px sans-serif';
+    ctx.font = 'bold 13px Sans, sans-serif';
     ctx.fillText('PATRIMÓNIO TOTAL', x3 + 25, cardY + 118);
 
     ctx.fillStyle = '#f1c40f';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(`${total.toLocaleString()} moedas`, x3 + 25, cardY + 175);
+    ctx.font = 'bold 22px Sans, sans-serif';
+    ctx.fillText(`💰 ${total.toLocaleString()}`, x3 + 25, cardY + 175);
 
     return canvas.toBuffer('image/png');
 }
@@ -400,11 +407,11 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.lineWidth = 2;
     roundRect(ctx, 480, 30, 280, 50, 10, false, true);
     ctx.fillStyle = '#888888';
-    ctx.font = '10px sans-serif';
+    ctx.font = '10px Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('LIGA ATUAL', 620, 50);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px sans-serif';
+    ctx.font = 'bold 14px Sans, sans-serif';
     ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), 620, 68);
 
     ctx.fillStyle = selectedColor;
@@ -415,24 +422,23 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.beginPath();
     ctx.arc(150, 200, 72, 0, Math.PI * 2);
     ctx.fill();
-    // Emoji trocado por texto (canvas não renderiza emojis no Discloud)
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px sans-serif';
+    ctx.font = 'bold 36px Sans, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('VS', 150, 212);
+    ctx.fillText('⚔️', 150, 212);
 
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px sans-serif';
+    ctx.font = 'bold 36px Sans, sans-serif';
     const username = member.displayName || member.username || 'Jogador';
     ctx.fillText(username.slice(0, 20), 270, 170);
 
     ctx.fillStyle = selectedColor;
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText(`RANK #${rankPosition} • ${stats.points} PTS`, 270, 210);
+    ctx.font = 'bold 20px Sans, sans-serif';
+    ctx.fillText(`RANK #${rankPosition} •${stats.points} PTS`, 270, 210);
 
     ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px sans-serif';
+    ctx.font = '11px Sans, sans-serif';
     ctx.fillText('TAXA DE VITÓRIA', 270, 260);
     ctx.textAlign = 'right';
 
@@ -457,12 +463,12 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.fillStyle = '#2ecc71';
     ctx.fillRect(270, boxY, 4, boxHeight);
     ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px sans-serif';
+    ctx.font = '11px Sans, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('VITÓRIAS', 290, boxY + 30);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.fillText(String(stats.wins || 0), 290, boxY + 75);
+    ctx.font = 'bold 32px Sans, sans-serif';
+    ctx.fillText(stats.wins || 0, 290, boxY + 75);
 
     // Empates
     ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
@@ -470,12 +476,12 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.fillStyle = '#f1c40f';
     ctx.fillRect(438, boxY, 4, boxHeight);
     ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px sans-serif';
+    ctx.font = '11px Sans, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('EMPATES', 458, boxY + 30);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.fillText(String(stats.draws || 0), 458, boxY + 75);
+    ctx.font = 'bold 32px Sans, sans-serif';
+    ctx.fillText(stats.draws || 0, 458, boxY + 75);
 
     // Derrotas
     ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
@@ -483,12 +489,12 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.fillStyle = '#e74c3c';
     ctx.fillRect(606, boxY, 4, boxHeight);
     ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px sans-serif';
+    ctx.font = '11px Sans, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('DERROTAS', 626, boxY + 30);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.fillText(String(stats.losses || 0), 626, boxY + 75);
+    ctx.font = 'bold 32px Sans, sans-serif';
+    ctx.fillText(stats.losses || 0, 626, boxY + 75);
 
     return canvas.toBuffer('image/png');
 }
@@ -513,7 +519,7 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
     ctx.fillRect(0, 0, 800, H);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px sans-serif';
+    ctx.font = 'bold 32px Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('TABELA 1V1', 400, 45);
 
@@ -521,15 +527,15 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
     ctx.lineWidth = 1.5;
     roundRect(ctx, 250, 60, 300, 35, 8, false, true);
     ctx.fillStyle = '#888888';
-    ctx.font = '9px sans-serif';
+    ctx.font = '9px Sans, sans-serif';
     ctx.fillText('LIGA ATUAL', 400, 75);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 11px sans-serif';
+    ctx.font = 'bold 11px Sans, sans-serif';
     ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), 400, 88);
 
     if (current.length === 0) {
         ctx.fillStyle = '#888888';
-        ctx.font = '20px sans-serif';
+        ctx.font = '20px Sans, sans-serif';
         ctx.fillText('Nenhum jogador pontuado.', 400, 180);
         return canvas.toBuffer('image/png');
     }
@@ -549,40 +555,34 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
         ctx.fillRect(50, startY, 5, 60);
 
         ctx.fillStyle = rank === 1 ? '#f1c40f' : rank === 2 ? '#95a5a6' : rank === 3 ? '#d35400' : '#ffffff';
-        ctx.font = 'bold 20px sans-serif';
+        ctx.font = 'bold 20px Sans, sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText(`#${rank}`, 75, startY + 36);
 
-        // Emoji trocado pelas iniciais do jogador (canvas não renderiza emojis no Discloud)
         ctx.fillStyle = selectedColor;
         ctx.beginPath();
         ctx.arc(150, startY + 30, 18, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#121318';
-        ctx.beginPath();
-        ctx.arc(150, startY + 30, 14, 0, Math.PI * 2);
-        ctx.fill();
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 12px sans-serif';
+        ctx.font = 'bold 12px Sans, sans-serif';
         ctx.textAlign = 'center';
-        const iniciais = (p.username || 'J').slice(0, 2).toUpperCase();
-        ctx.fillText(iniciais, 150, startY + 35);
+        ctx.fillText('👤', 150, startY + 34);
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 18px sans-serif';
+        ctx.font = 'bold 18px Sans, sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText((p.username || 'Jogador').slice(0, 18), 185, startY + 36);
 
         const total = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
         const wr = total > 0 ? ((p.wins / total) * 100).toFixed(1) : '0.0';
         ctx.fillStyle = '#2ecc71';
-        ctx.font = '12px sans-serif';
+        ctx.font = '12px Sans, sans-serif';
         ctx.fillText(`TAXA DE VITÓRIA: ${wr}%`, 480, startY + 36);
 
         ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 24px sans-serif';
+        ctx.font = 'bold 24px Sans, sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(String(p.points), 725, startY + 38);
+        ctx.fillText(p.points, 725, startY + 38);
 
         startY += 70;
     }
@@ -622,7 +622,7 @@ async function buildTabelaMessage(players, page, dbSettings = {}) {
         .setColor(COLOR_MAP[dbSettings.ligaCor] || 0xE74C3C)
         .setImage(`attachment://tabela_pagina_${page + 1}.png`)
         .setTimestamp()
-        .setFooter({ text: `Página ${page + 1} de ${totalPages}` });
+        .setFooter({ text: `Página ${page + 1} de${totalPages}` });
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`tabela_prev_${page}`).setLabel('◀ Anterior').setStyle(ButtonStyle.Primary).setDisabled(page === 0),
@@ -655,17 +655,17 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
     ctx.fillRect(0, 0, W, H);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px sans-serif';
+    ctx.font = 'bold 28px Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText((dbSettings.tabelaNome || 'CIDADE - RANKING').toUpperCase(), W / 2, 45);
 
     ctx.fillStyle = selectedColor;
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText('EXIBINDO DO 1 AO 10 (BANCO)', W / 2, 75);
+    ctx.font = 'bold 12px Sans, sans-serif';
+    ctx.fillText(`EXIBINDO DO 1 AO 10 (BANCO)`, W / 2, 75);
 
     if (current.length === 0) {
         ctx.fillStyle = '#888888';
-        ctx.font = '18px sans-serif';
+        ctx.font = '18px Sans, sans-serif';
         ctx.fillText('Nenhum cidadão com dinheiro no banco.', W / 2, HEADER_H + 50);
         return canvas.toBuffer('image/png');
     }
@@ -685,11 +685,10 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
         ctx.fillRect(40, startY, 5, 52);
 
         ctx.fillStyle = rank === 1 ? '#f1c40f' : rank === 2 ? '#95a5a6' : rank === 3 ? '#d35400' : '#ffffff';
-        ctx.font = 'bold 18px sans-serif';
+        ctx.font = 'bold 18px Sans, sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText(`#${rank}`, 65, startY + 33);
 
-        // Círculo com iniciais do cidadão (sem emoji)
         ctx.fillStyle = selectedColor;
         ctx.beginPath();
         ctx.arc(135, startY + 26, 16, 0, Math.PI * 2);
@@ -698,19 +697,14 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
         ctx.beginPath();
         ctx.arc(135, startY + 26, 12, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 10px sans-serif';
-        ctx.textAlign = 'center';
-        const iniciais = (p.username || 'C').slice(0, 2).toUpperCase();
-        ctx.fillText(iniciais, 135, startY + 30);
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px sans-serif';
+        ctx.font = 'bold 16px Sans, sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText((p.username || 'Cidadão').slice(0, 20), 175, startY + 33);
 
         ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 18px sans-serif';
+        ctx.font = 'bold 18px Sans, sans-serif';
         ctx.textAlign = 'right';
         ctx.fillText(`${p.bank.toLocaleString()} moedas`, 735, startY + 34);
 
@@ -750,7 +744,7 @@ async function buildCidadeTabelaMessage(players, page, dbSettings, clientInstanc
         .setColor(COLOR_MAP[dbSettings.tabelaCor] || 0xF1C40F)
         .setImage(`attachment://tabela_cidade_pagina_${page + 1}.png`)
         .setTimestamp()
-        .setFooter({ text: `Página ${page + 1} de ${totalPages}` });
+        .setFooter({ text: `Página ${page + 1} de${totalPages}` });
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`cidade_prev_${page}`).setLabel('◀ Anterior').setStyle(ButtonStyle.Primary).setDisabled(page === 0),
@@ -1448,7 +1442,7 @@ client.on('interactionCreate', async interaction => {
 
             const players = await getRankedCidadePlayers(cidadeGuildData.users, client);
             if (players.length === 0) {
-                return await interaction.editReply({ content: '⚠️ A tabela da cidade está vazia.', embeds: [], files: [], components: [] });
+                return await interaction.editReply({ content: '⚠️️ A tabela da cidade está vazia.', embeds: [], files: [], components: [] });
             }
 
             try {
@@ -1564,7 +1558,7 @@ client.on('interactionCreate', async interaction => {
             if (interaction.customId === 'ticket_cfg_cargo') {
                 const selectRole = new RoleSelectMenuBuilder()
                     .setCustomId('select_ticket_cargo_staff')
-                    .setPlaceholder('🛡️ Selecione o cargo da Staff...')
+                    .setPlaceholder('🛡️️ Selecione o cargo da Staff...')
                     .setMinValues(1)
                     .setMaxValues(1);
 
@@ -2127,7 +2121,7 @@ client.on('interactionCreate', async interaction => {
         const parts = interaction.customId.split('_');
         const challengerId = parts[2];
         const targetId = parts[3];
-        const mapa = decodeURIComponent(parts.slice(4).join('_'));
+        const mapa = decodeURIComponent(parts[4]);
 
         if (interaction.user.id === challengerId) {
             return await interaction.reply({ content: '❌ Não podes aceitar o teu próprio desafio!', ephemeral: true });
