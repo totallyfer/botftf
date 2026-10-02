@@ -8,10 +8,10 @@ const fs = require('fs');
 const express = require('express');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
-// --- Servidor Web para manter ativo (Render / Replit / Discloud) ---
+// --- Servidor Web para manter ativo no Railway ---
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('Bot Unificado (1v1 + Cidade + Tickets) a funcionar perfeitamente!'));
+app.get('/', (req, res) => res.send('Bot Unificado (1v1 + Cidade + Tickets) a funcionar perfeitamente no Railway!'));
 app.listen(PORT, () => console.log(`Servidor web na porta ${PORT}`));
 
 const client = new Client({
@@ -181,7 +181,7 @@ function getTicketGuildData(db, guildId) {
     return db.guilds[guildId];
 }
 
-// Cooldowns em memória (Isolados por Servidor usando chave "guildId_userId")
+// Cooldowns em memória
 const cidadeCooldowns = {
     work: new Map(),
     job: new Map(),
@@ -190,9 +190,6 @@ const cidadeCooldowns = {
     rob: new Map()
 };
 
-// ============================================================
-// --- FUNÇÃO PARA ATUALIZAR CARGOS DO PÓDIO (1V1) ---
-// ============================================================
 async function atualizarCargosPodio(guild, guildData) {
     if (!guild) return;
     const settings = guildData.settings;
@@ -230,9 +227,6 @@ async function atualizarCargosPodio(guild, guildData) {
     }
 }
 
-// ============================================================
-// --- FUNÇÕES AUXILIARES DE CANVAS ---
-// ============================================================
 function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -260,7 +254,7 @@ function drawRoundImage(ctx, img, x, y, size) {
 }
 
 // ============================================================
-// --- GERADOR DE IMAGEM: MONEYINFO DETALHADO COM ÍCONES ---
+// --- GERADOR DE IMAGEM: MONEYINFO (Usando DejaVu Sans) ---
 // ============================================================
 async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     const canvas = createCanvas(900, 480);
@@ -277,12 +271,12 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.fillRect(0, 146, canvas.width, 4);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 28px DejaVu Sans';
     ctx.textAlign = 'left';
     ctx.fillText('PAINEL FINANCEIRO', 180, 70);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.font = '14px DejaVu Sans, sans-serif';
+    ctx.font = '14px DejaVu Sans';
     ctx.fillText('Extrato de contas, carteira e património da cidade', 180, 95);
 
     let avatarImg = null;
@@ -307,12 +301,12 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
 
     ctx.textAlign = 'right';
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 18px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 18px DejaVu Sans';
     const username = member.displayName || member.username || 'Cidadão';
     ctx.fillText(`@${username.slice(0, 20)}`, canvas.width - 50, 70);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '12px DejaVu Sans, sans-serif';
+    ctx.font = '12px DejaVu Sans';
     ctx.fillText('STATUS: Cidadão Ativo 🏙️', canvas.width - 50, 92);
 
     const wallet = userObj.wallet || 0;
@@ -340,16 +334,16 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.fillRect(startX + 45, cardY + 48, 8, 6);
 
     ctx.fillStyle = '#a0a2ab';
-    ctx.font = 'bold 13px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 13px DejaVu Sans';
     ctx.textAlign = 'left';
     ctx.fillText('DINHEIRO EM MÃOS', startX + 25, cardY + 100);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 13px DejaVu Sans';
     ctx.fillText('CARTEIRA', startX + 25, cardY + 118);
 
     ctx.fillStyle = '#2ecc71';
-    ctx.font = 'bold 22px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 22px DejaVu Sans';
     ctx.fillText(`🪙 ${wallet.toLocaleString()}`, startX + 25, cardY + 175);
 
     // Banco
@@ -368,16 +362,16 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.fillRect(x2 + 55, cardY + 40, 4, 18);
 
     ctx.fillStyle = '#a0a2ab';
-    ctx.font = 'bold 13px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 13px DejaVu Sans';
     ctx.textAlign = 'left';
     ctx.fillText('PROTEGIDO NO COFRE', x2 + 25, cardY + 100);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 13px DejaVu Sans';
     ctx.fillText('BANCO CENTRAL', x2 + 25, cardY + 118);
 
     ctx.fillStyle = '#3498db';
-    ctx.font = 'bold 22px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 22px DejaVu Sans';
     ctx.fillText(`🏦 ${bank.toLocaleString()}`, x2 + 25, cardY + 175);
 
     // Património
@@ -396,16 +390,16 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.fillRect(x3 + 54, cardY + 37, 6, 27);
 
     ctx.fillStyle = '#a0a2ab';
-    ctx.font = 'bold 13px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 13px DejaVu Sans';
     ctx.textAlign = 'left';
     ctx.fillText('SOMA GERAL', x3 + 25, cardY + 100);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 13px DejaVu Sans';
     ctx.fillText('PATRIMÓNIO TOTAL', x3 + 25, cardY + 118);
 
     ctx.fillStyle = '#f1c40f';
-    ctx.font = 'bold 22px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 22px DejaVu Sans';
     ctx.fillText(`💰 ${total.toLocaleString()}`, x3 + 25, cardY + 175);
 
     return canvas.toBuffer('image/png');
@@ -429,11 +423,11 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.lineWidth = 2;
     roundRect(ctx, 480, 30, 280, 50, 10, false, true);
     ctx.fillStyle = '#888888';
-    ctx.font = '10px DejaVu Sans, sans-serif';
+    ctx.font = '10px DejaVu Sans';
     ctx.textAlign = 'center';
     ctx.fillText('LIGA ATUAL', 620, 50);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 14px DejaVu Sans';
     ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), 620, 68);
 
     let avatarImg = null;
@@ -453,16 +447,16 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
 
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 36px DejaVu Sans';
     const username = member.displayName || member.username || 'Jogador';
     ctx.fillText(username.slice(0, 20), 270, 170);
 
     ctx.fillStyle = selectedColor;
-    ctx.font = 'bold 20px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 20px DejaVu Sans';
     ctx.fillText(`RANK #${rankPosition} •${stats.points} PTS`, 270, 210);
 
     ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px DejaVu Sans, sans-serif';
+    ctx.font = '11px DejaVu Sans';
     ctx.fillText('TAXA DE VITÓRIA', 270, 260);
     ctx.textAlign = 'right';
 
@@ -487,11 +481,11 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.fillStyle = '#2ecc71';
     ctx.fillRect(270, boxY, 4, boxHeight);
     ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px DejaVu Sans, sans-serif';
+    ctx.font = '11px DejaVu Sans';
     ctx.textAlign = 'left';
     ctx.fillText('VITÓRIAS', 290, boxY + 30);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 32px DejaVu Sans';
     ctx.fillText(stats.wins || 0, 290, boxY + 75);
 
     // Empates
@@ -500,11 +494,11 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.fillStyle = '#f1c40f';
     ctx.fillRect(438, boxY, 4, boxHeight);
     ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px DejaVu Sans, sans-serif';
+    ctx.font = '11px DejaVu Sans';
     ctx.textAlign = 'left';
     ctx.fillText('EMPATES', 458, boxY + 30);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 32px DejaVu Sans';
     ctx.fillText(stats.draws || 0, 458, boxY + 75);
 
     // Derrotas
@@ -513,11 +507,11 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.fillStyle = '#e74c3c';
     ctx.fillRect(606, boxY, 4, boxHeight);
     ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px DejaVu Sans, sans-serif';
+    ctx.font = '11px DejaVu Sans';
     ctx.textAlign = 'left';
     ctx.fillText('DERROTAS', 626, boxY + 30);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 32px DejaVu Sans';
     ctx.fillText(stats.losses || 0, 626, boxY + 75);
 
     return canvas.toBuffer('image/png');
@@ -545,7 +539,7 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
     ctx.fillRect(0, 0, W, H);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 32px DejaVu Sans';
     ctx.textAlign = 'center';
     ctx.fillText('TABELA 1V1', W / 2, 45);
 
@@ -553,15 +547,15 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
     ctx.lineWidth = 1.5;
     roundRect(ctx, 250, 60, 300, 35, 8, false, true);
     ctx.fillStyle = '#888888';
-    ctx.font = '9px DejaVu Sans, sans-serif';
+    ctx.font = '9px DejaVu Sans';
     ctx.fillText('LIGA ATUAL', W / 2, 75);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 11px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 11px DejaVu Sans';
     ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), W / 2, 88);
 
     if (current.length === 0) {
         ctx.fillStyle = '#888888';
-        ctx.font = '20px DejaVu Sans, sans-serif';
+        ctx.font = '20px DejaVu Sans';
         ctx.fillText('Nenhum jogador pontuado.', W / 2, HEADER_H + 50);
         return canvas.toBuffer('image/png');
     }
@@ -581,7 +575,7 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
         ctx.fillRect(50, startY, 5, 60);
 
         ctx.fillStyle = rank === 1 ? '#f1c40f' : rank === 2 ? '#95a5a6' : rank === 3 ? '#d35400' : '#ffffff';
-        ctx.font = 'bold 20px DejaVu Sans, sans-serif';
+        ctx.font = 'bold 20px DejaVu Sans';
         ctx.textAlign = 'left';
         ctx.fillText(`#${rank}`, 75, startY + 36);
 
@@ -600,17 +594,17 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
         }
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 18px DejaVu Sans, sans-serif';
+        ctx.font = 'bold 18px DejaVu Sans';
         ctx.fillText((p.username || 'Jogador').slice(0, 18), 185, startY + 36);
 
         const total = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
         const wr = total > 0 ? ((p.wins / total) * 100).toFixed(1) : '0.0';
         ctx.fillStyle = '#2ecc71';
-        ctx.font = '12px DejaVu Sans, sans-serif';
+        ctx.font = '12px DejaVu Sans';
         ctx.fillText(`TAXA DE VITÓRIA: ${wr}%`, 480, startY + 36);
 
         ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 24px DejaVu Sans, sans-serif';
+        ctx.font = 'bold 24px DejaVu Sans';
         ctx.textAlign = 'right';
         ctx.fillText(p.points, 725, startY + 38);
 
@@ -686,17 +680,17 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
     ctx.fillRect(0, 0, W, H);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 28px DejaVu Sans';
     ctx.textAlign = 'center';
     ctx.fillText((dbSettings.tabelaNome || 'CIDADE - RANKING').toUpperCase(), W / 2, 45);
 
     ctx.fillStyle = selectedColor;
-    ctx.font = 'bold 12px DejaVu Sans, sans-serif';
+    ctx.font = 'bold 12px DejaVu Sans';
     ctx.fillText(`EXIBINDO DO 1 AO 10 (BANCO)`, W / 2, 75);
 
     if (current.length === 0) {
         ctx.fillStyle = '#888888';
-        ctx.font = '18px DejaVu Sans, sans-serif';
+        ctx.font = '18px DejaVu Sans';
         ctx.fillText('Nenhum cidadão com dinheiro no banco.', W / 2, HEADER_H + 50);
         return canvas.toBuffer('image/png');
     }
@@ -716,7 +710,7 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
         ctx.fillRect(40, startY, 5, 55);
 
         ctx.fillStyle = rank === 1 ? '#f1c40f' : rank === 2 ? '#95a5a6' : rank === 3 ? '#d35400' : '#ffffff';
-        ctx.font = 'bold 18px DejaVu Sans, sans-serif';
+        ctx.font = 'bold 18px DejaVu Sans';
         ctx.textAlign = 'left';
         ctx.fillText(`#${rank}`, 65, startY + 34);
 
@@ -735,11 +729,11 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
         }
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px DejaVu Sans, sans-serif';
+        ctx.font = 'bold 16px DejaVu Sans';
         ctx.fillText((p.username || 'Cidadão').slice(0, 20), 175, startY + 34);
 
         ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 18px DejaVu Sans, sans-serif';
+        ctx.font = 'bold 18px DejaVu Sans';
         ctx.textAlign = 'right';
         ctx.fillText(`🪙 ${p.bank.toLocaleString()} moedas`, 735, startY + 35);
 
@@ -996,7 +990,7 @@ client.on('interactionCreate', async interaction => {
                     .setTimestamp();
 
                 const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('cidade_mudar_titulo').setLabel('Mudar Título').setStyle(ButtonStyle.Primary).setEmoji('✏️'),
+                    new ButtonBuilder().setCustomId('cidade_mudar_titulo').setLabel('Mudar Título').setStyle(ButtonStyle.Primary).setEmoji('✏️️'),
                     new ButtonBuilder().setCustomId('cidade_mudar_cor').setLabel('Mudar Cor').setStyle(ButtonStyle.Secondary).setEmoji('🎨'),
                     new ButtonBuilder().setCustomId('cidade_add_remover').setLabel('Adicionar/Remover Moedas').setStyle(ButtonStyle.Success).setEmoji('🪙'),
                     new ButtonBuilder().setCustomId('cidade_resetar').setLabel('Resetar Cidade').setStyle(ButtonStyle.Danger).setEmoji('🚨')
@@ -1730,7 +1724,7 @@ client.on('interactionCreate', async interaction => {
                 saveTicketDB(ticketDb);
 
                 const embedClaim = new EmbedBuilder()
-                    .setTitle('🛡️️ Ticket Reivindicado')
+                    .setTitle('🛡️ Ticket Reivindicado')
                     .setDescription(`Este atendimento foi assumido por ${interaction.user}.`)
                     .setColor(0x2ECC71);
 
@@ -1846,7 +1840,7 @@ client.on('interactionCreate', async interaction => {
             );
 
             await ticketChannel.send({
-                content: `${interaction.user}${staffRoleId ? `<@&${staffRoleId}>` : ''}`,
+                content: `${interaction.user}${staffRoleId ? ` <@&${staffRoleId}>` : ''}`,
                 embeds: [embedTicket],
                 components: [row]
             });
