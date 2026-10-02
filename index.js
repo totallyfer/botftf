@@ -6,7 +6,6 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
-const { createCanvas } = require('@napi-rs/canvas');
 
 // --- Servidor Web para manter ativo ---
 const app = express();
@@ -230,356 +229,92 @@ async function atualizarCargosPodio(guild, guildData) {
 }
 
 // ============================================================
-// --- FUNÇÕES AUXILIARES DE CANVAS ---
+// --- GERADOR DE IMAGENS VIA API (QUICKCHART GRÁFICOS / BARRAS) ---
 // ============================================================
-function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-    if (fill) ctx.fill();
-    if (stroke) ctx.stroke();
-}
-
-// ============================================================
-// --- GERADOR DE IMAGEM: MONEYINFO ---
-// ============================================================
-async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
-    const canvas = createCanvas(900, 480);
-    const ctx = canvas.getContext('2d');
-    const selectedColor = COLOR_MAP[dbSettings.tabelaCor] || '#f1c40f';
-
-    ctx.fillStyle = selectedColor;
-    ctx.fillRect(0, 0, canvas.width, 160);
-
-    ctx.fillStyle = '#121318';
-    ctx.fillRect(0, 150, canvas.width, canvas.height - 150);
-
-    ctx.fillStyle = selectedColor;
-    ctx.fillRect(0, 146, canvas.width, 4);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('PAINEL FINANCEIRO', 180, 70);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.font = '14px sans-serif';
-    ctx.fillText('Extrato de contas, carteira e património da cidade', 180, 95);
-
-    ctx.fillStyle = selectedColor;
-    ctx.beginPath();
-    ctx.arc(100, 80, 52, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#2c2d30';
-    ctx.beginPath();
-    ctx.arc(100, 80, 48, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('🪙', 100, 90);
-
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 18px sans-serif';
-    const username = member.displayName || member.username || 'Cidadão';
-    ctx.fillText(`@${username.slice(0, 20)}`, canvas.width - 50, 70);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '12px sans-serif';
-    ctx.fillText('STATUS: Cidadão Ativo', canvas.width - 50, 92);
-
-    const wallet = userObj.wallet || 0;
-    const bank = userObj.bank || 0;
-    const total = wallet + bank;
-
-    const cardY = 195;
-    const cardW = 245;
-    const cardH = 230;
-    const cardSpacing = 30;
-    const startX = 50;
-
-    // Carteira
-    ctx.fillStyle = '#1b1d24';
-    roundRect(ctx, startX, cardY, cardW, cardH, 16, true, false);
-    ctx.strokeStyle = '#2ecc71';
-    ctx.lineWidth = 2;
-    roundRect(ctx, startX, cardY, cardW, cardH, 16, false, true);
-
-    ctx.fillStyle = '#2ecc71';
-    roundRect(ctx, startX + 25, cardY + 25, 45, 45, 10, true, false);
-
-    ctx.fillStyle = '#a0a2ab';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('DINHEIRO EM MÃOS', startX + 25, cardY + 100);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.fillText('CARTEIRA', startX + 25, cardY + 118);
-
-    ctx.fillStyle = '#2ecc71';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(`🪙 ${wallet.toLocaleString()}`, startX + 25, cardY + 175);
-
-    // Banco
-    const x2 = startX + cardW + cardSpacing;
-    ctx.fillStyle = '#1b1d24';
-    roundRect(ctx, x2, cardY, cardW, cardH, 16, true, false);
-    ctx.strokeStyle = '#3498db';
-    ctx.lineWidth = 2;
-    roundRect(ctx, x2, cardY, cardW, cardH, 16, false, true);
-
-    ctx.fillStyle = '#3498db';
-    roundRect(ctx, x2 + 25, cardY + 25, 45, 45, 10, true, false);
-
-    ctx.fillStyle = '#a0a2ab';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('PROTEGIDO NO COFRE', x2 + 25, cardY + 100);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.fillText('BANCO CENTRAL', x2 + 25, cardY + 118);
-
-    ctx.fillStyle = '#3498db';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(`🏦 ${bank.toLocaleString()}`, x2 + 25, cardY + 175);
-
-    // Património
-    const x3 = x2 + cardW + cardSpacing;
-    ctx.fillStyle = '#1b1d24';
-    roundRect(ctx, x3, cardY, cardW, cardH, 16, true, false);
-    ctx.strokeStyle = selectedColor;
-    ctx.lineWidth = 2;
-    roundRect(ctx, x3, cardY, cardW, cardH, 16, false, true);
-
-    ctx.fillStyle = selectedColor;
-    roundRect(ctx, x3 + 25, cardY + 25, 45, 45, 10, true, false);
-
-    ctx.fillStyle = '#a0a2ab';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('SOMA GERAL', x3 + 25, cardY + 100);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.fillText('PATRIMÓNIO TOTAL', x3 + 25, cardY + 118);
-
-    ctx.fillStyle = '#f1c40f';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(`💰 ${total.toLocaleString()}`, x3 + 25, cardY + 175);
-
-    return canvas.toBuffer('image/png');
-}
-
-// ============================================================
-// --- GERADOR DE IMAGEM: ANÁLISE DE PERFIL (1V1) ---
-// ============================================================
-async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}) {
-    const canvas = createCanvas(800, 450);
-    const ctx = canvas.getContext('2d');
-    const selectedColor = COLOR_MAP[dbSettings.ligaCor] || '#e74c3c';
-
-    ctx.fillStyle = selectedColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.fillStyle = 'rgba(15, 15, 18, 0.82)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.strokeStyle = selectedColor;
-    ctx.lineWidth = 2;
-    roundRect(ctx, 480, 30, 280, 50, 10, false, true);
-    ctx.fillStyle = '#888888';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('LIGA ATUAL', 620, 50);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), 620, 68);
-
-    ctx.fillStyle = selectedColor;
-    ctx.beginPath();
-    ctx.arc(150, 200, 78, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#2c2d30';
-    ctx.beginPath();
-    ctx.arc(150, 200, 72, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('⚔️', 150, 212);
-
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px sans-serif';
-    const username = member.displayName || member.username || 'Jogador';
-    ctx.fillText(username.slice(0, 20), 270, 170);
-
-    ctx.fillStyle = selectedColor;
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText(`RANK #${rankPosition} •${stats.points} PTS`, 270, 210);
-
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px sans-serif';
-    ctx.fillText('TAXA DE VITÓRIA', 270, 260);
-    ctx.textAlign = 'right';
-
-    const totalJogos = (stats.wins || 0) + (stats.losses || 0) + (stats.draws || 0);
-    const winRate = totalJogos > 0 ? ((stats.wins / totalJogos) * 100).toFixed(1) : '0.0';
-    ctx.fillText(`${winRate}%`, 760, 260);
-
-    ctx.fillStyle = '#2c2d30';
-    roundRect(ctx, 270, 275, 490, 8, 4, true, false);
-    
-    ctx.fillStyle = selectedColor;
-    const barraWidth = Math.max(10, (490 * parseFloat(winRate)) / 100);
-    roundRect(ctx, 270, 275, barraWidth, 8, 4, true, false);
-
-    const boxWidth = 153;
-    const boxHeight = 100;
-    const boxY = 310;
-
-    // Vitórias
-    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
-    roundRect(ctx, 270, boxY, boxWidth, boxHeight, 12, true, false);
-    ctx.fillStyle = '#2ecc71';
-    ctx.fillRect(270, boxY, 4, boxHeight);
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('VITÓRIAS', 290, boxY + 30);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.fillText(stats.wins || 0, 290, boxY + 75);
-
-    // Empates
-    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
-    roundRect(ctx, 438, boxY, boxWidth, boxHeight, 12, true, false);
-    ctx.fillStyle = '#f1c40f';
-    ctx.fillRect(438, boxY, 4, boxHeight);
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('EMPATES', 458, boxY + 30);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.fillText(stats.draws || 0, 458, boxY + 75);
-
-    // Derrotas
-    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
-    roundRect(ctx, 606, boxY, boxWidth, boxHeight, 12, true, false);
-    ctx.fillStyle = '#e74c3c';
-    ctx.fillRect(606, boxY, 4, boxHeight);
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('DERROTAS', 626, boxY + 30);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.fillText(stats.losses || 0, 626, boxY + 75);
-
-    return canvas.toBuffer('image/png');
-}
-
-// ============================================================
-// --- GERADOR DE IMAGEM: TABELA DE RANKING (1V1) ---
-// ============================================================
-async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
-    const PER_PAGE = 4;
+async function generateRankingChartUrl(playersArray, page = 0, dbSettings = {}) {
+    const PER_PAGE = 5;
     const startIdx = page * PER_PAGE;
     const current = playersArray.slice(startIdx, startIdx + PER_PAGE);
-    const H = Math.max(400, 130 + Math.max(current.length, 1) * 75 + 60);
 
-    const canvas = createCanvas(800, H);
-    const ctx = canvas.getContext('2d');
-    const selectedColor = COLOR_MAP[dbSettings.ligaCor] || '#e74c3c';
+    const labels = current.map((p, i) => `#${startIdx + i + 1} -${(p.username || 'Jogador').slice(0, 15)}`);
+    const dataPoints = current.map(p => p.points);
+    const colorHex = COLOR_MAP[dbSettings.ligaCor] || '#e74c3c';
 
-    ctx.fillStyle = selectedColor;
-    ctx.fillRect(0, 0, 800, H);
+    const chartConfig = {
+        type: 'bar',
+        data: {
+            labels: labels.length > 0 ? labels : ['Sem Jogadores'],
+            datasets: [{
+                label: 'Pontos 1v1',
+                data: dataPoints.length > 0 ? dataPoints : [0],
+                backgroundColor: colorHex,
+                borderColor: '#ffffff',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: {
+                title: {
+                    display: true,
+                    text: (dbSettings.ligaNome || 'TABELA 1V1').toUpperCase(),
+                    color: '#ffffff',
+                    font: { size: 20, weight: 'bold' }
+                },
+                legend: { display: false }
+            },
+            scales: {
+                x: { ticks: { color: '#ffffff', font: { size: 14 } }, grid: { color: '#333333' } },
+                y: { ticks: { color: '#ffffff', font: { size: 14, weight: 'bold' } }, grid: { display: false } }
+            }
+        }
+    };
 
-    ctx.fillStyle = 'rgba(15, 15, 18, 0.85)';
-    ctx.fillRect(0, 0, 800, H);
+    const encoded = encodeURIComponent(JSON.stringify(chartConfig));
+    return `https://quickchart.io/chart?w=800&h=450&bkg=121318&c=${encoded}`;
+}
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('TABELA 1V1', 400, 45);
+async function generateCidadeChartUrl(playersArray, page = 0, dbSettings = {}) {
+    const PER_PAGE = 8;
+    const startIdx = page * PER_PAGE;
+    const current = playersArray.slice(startIdx, startIdx + PER_PAGE);
 
-    ctx.strokeStyle = selectedColor;
-    ctx.lineWidth = 1.5;
-    roundRect(ctx, 250, 60, 300, 35, 8, false, true);
-    ctx.fillStyle = '#888888';
-    ctx.font = '9px sans-serif';
-    ctx.fillText('LIGA ATUAL', 400, 75);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 11px sans-serif';
-    ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), 400, 88);
+    const labels = current.map((p, i) => `#${startIdx + i + 1} -${(p.username || 'Cidadão').slice(0, 15)}`);
+    const dataPoints = current.map(p => p.bank);
+    const colorHex = COLOR_MAP[dbSettings.tabelaCor] || '#f1c40f';
 
-    if (current.length === 0) {
-        ctx.fillStyle = '#888888';
-        ctx.font = '20px sans-serif';
-        ctx.fillText('Nenhum jogador pontuado.', 400, 180);
-        return canvas.toBuffer('image/png');
-    }
+    const chartConfig = {
+        type: 'bar',
+        data: {
+            labels: labels.length > 0 ? labels : ['Sem Cidadãos'],
+            datasets: [{
+                label: 'Moedas no Banco',
+                data: dataPoints.length > 0 ? dataPoints : [0],
+                backgroundColor: colorHex,
+                borderColor: '#ffffff',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: {
+                title: {
+                    display: true,
+                    text: (dbSettings.tabelaNome || 'CIDADE - RANKING').toUpperCase(),
+                    color: '#ffffff',
+                    font: { size: 20, weight: 'bold' }
+                },
+                legend: { display: false }
+            },
+            scales: {
+                x: { ticks: { color: '#ffffff', font: { size: 14 } }, grid: { color: '#333333' } },
+                y: { ticks: { color: '#ffffff', font: { size: 14, weight: 'bold' } }, grid: { display: false } }
+            }
+        }
+    };
 
-    let startY = 120;
-    for (let i = 0; i < current.length; i++) {
-        const p = current[i];
-        const rank = startIdx + i + 1;
-
-        ctx.fillStyle = 'rgba(30, 31, 34, 0.85)';
-        roundRect(ctx, 50, startY, 700, 60, 10, true, false);
-
-        if (rank === 1) ctx.fillStyle = '#f1c40f';
-        else if (rank === 2) ctx.fillStyle = '#95a5a6';
-        else if (rank === 3) ctx.fillStyle = '#d35400';
-        else ctx.fillStyle = selectedColor;
-        ctx.fillRect(50, startY, 5, 60);
-
-        ctx.fillStyle = rank === 1 ? '#f1c40f' : rank === 2 ? '#95a5a6' : rank === 3 ? '#d35400' : '#ffffff';
-        ctx.font = 'bold 20px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(`#${rank}`, 75, startY + 36);
-
-        ctx.fillStyle = selectedColor;
-        ctx.beginPath();
-        ctx.arc(150, startY + 30, 18, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('👤', 150, startY + 34);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText((p.username || 'Jogador').slice(0, 18), 185, startY + 36);
-
-        const total = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
-        const wr = total > 0 ? ((p.wins / total) * 100).toFixed(1) : '0.0';
-        ctx.fillStyle = '#2ecc71';
-        ctx.font = '12px sans-serif';
-        ctx.fillText(`TAXA DE VITÓRIA: ${wr}%`, 480, startY + 36);
-
-        ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 24px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(p.points, 725, startY + 38);
-
-        startY += 70;
-    }
-
-    return canvas.toBuffer('image/png');
+    const encoded = encodeURIComponent(JSON.stringify(chartConfig));
+    return `https://quickchart.io/chart?w=800&h=450&bkg=121318&c=${encoded}`;
 }
 
 async function getRankedPlayers(guildPlayersObj, clientInstance) {
@@ -603,16 +338,15 @@ async function getRankedPlayers(guildPlayersObj, clientInstance) {
 }
 
 async function buildTabelaMessage(players, page, dbSettings = {}) {
-    const PER_PAGE = 4;
-    const buffer = await generateRankingImage(players, page, dbSettings);
-    const attachment = new AttachmentBuilder(buffer, { name: `tabela_pagina_${page + 1}.png` });
+    const PER_PAGE = 5;
+    const imageUrl = await generateRankingChartUrl(players, page, dbSettings);
 
     const totalPages = Math.ceil(players.length / PER_PAGE) || 1;
     const ligaTitulo = dbSettings.ligaNome ? ` - ${dbSettings.ligaNome}` : '';
     const embed = new EmbedBuilder()
-        .setTitle(`<a:brasil:1554216254187765960>  Tabela de Classificação${ligaTitulo}`)
+        .setTitle(`<a:brasil:1554216254187765960> Tabela de Classificação${ligaTitulo}`)
         .setColor(COLOR_MAP[dbSettings.ligaCor] || 0xE74C3C)
-        .setImage(`attachment://tabela_pagina_${page + 1}.png`)
+        .setImage(imageUrl)
         .setTimestamp()
         .setFooter({ text: `Página ${page + 1} de${totalPages}` });
 
@@ -621,89 +355,7 @@ async function buildTabelaMessage(players, page, dbSettings = {}) {
         new ButtonBuilder().setCustomId(`tabela_next_${page}`).setLabel('Próxima ▶').setStyle(ButtonStyle.Primary).setDisabled((page + 1) * PER_PAGE >= players.length)
     );
 
-    return { embeds: [embed], files: [attachment], components: [row] };
-}
-
-// ============================================================
-// --- GERADOR DE IMAGEM: TABELA DA CIDADE (1-10) ---
-// ============================================================
-async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {}) {
-    const PER_PAGE = 10;
-    const startIdx = page * PER_PAGE;
-    const current = playersArray.slice(startIdx, startIdx + PER_PAGE);
-    
-    const ROW_H = 65;
-    const HEADER_H = 120;
-    const W = 800;
-    const H = Math.max(400, HEADER_H + (Math.max(current.length, 1) * ROW_H) + 60);
-
-    const canvas = createCanvas(W, H);
-    const ctx = canvas.getContext('2d');
-    const selectedColor = COLOR_MAP[dbSettings.tabelaCor] || '#f1c40f';
-
-    ctx.fillStyle = selectedColor;
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(15, 15, 18, 0.95)';
-    ctx.fillRect(0, 0, W, H);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText((dbSettings.tabelaNome || 'CIDADE - RANKING').toUpperCase(), W / 2, 45);
-
-    ctx.fillStyle = selectedColor;
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText(`EXIBINDO DO 1 AO 10 (BANCO)`, W / 2, 75);
-
-    if (current.length === 0) {
-        ctx.fillStyle = '#888888';
-        ctx.font = '18px sans-serif';
-        ctx.fillText('Nenhum cidadão com dinheiro no banco.', W / 2, HEADER_H + 50);
-        return canvas.toBuffer('image/png');
-    }
-
-    let startY = 110;
-    for (let i = 0; i < current.length; i++) {
-        const p = current[i];
-        const rank = startIdx + i + 1;
-
-        ctx.fillStyle = 'rgba(30, 31, 34, 0.85)';
-        roundRect(ctx, 40, startY, 720, 52, 8, true, false);
-
-        if (rank === 1) ctx.fillStyle = '#f1c40f';
-        else if (rank === 2) ctx.fillStyle = '#95a5a6';
-        else if (rank === 3) ctx.fillStyle = '#d35400';
-        else ctx.fillStyle = selectedColor;
-        ctx.fillRect(40, startY, 5, 52);
-
-        ctx.fillStyle = rank === 1 ? '#f1c40f' : rank === 2 ? '#95a5a6' : rank === 3 ? '#d35400' : '#ffffff';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(`#${rank}`, 65, startY + 33);
-
-        ctx.fillStyle = selectedColor;
-        ctx.beginPath();
-        ctx.arc(135, startY + 26, 16, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#121318';
-        ctx.beginPath();
-        ctx.arc(135, startY + 26, 12, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText((p.username || 'Cidadão').slice(0, 20), 175, startY + 33);
-
-        ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(`${p.bank.toLocaleString()} moedas`, 735, startY + 34);
-
-        startY += 62;
-    }
-
-    return canvas.toBuffer('image/png');
+    return { embeds: [embed], components: [row] };
 }
 
 async function getRankedCidadePlayers(guildUsersObj, clientInstance) {
@@ -725,16 +377,15 @@ async function getRankedCidadePlayers(guildUsersObj, clientInstance) {
 }
 
 async function buildCidadeTabelaMessage(players, page, dbSettings, clientInstance) {
-    const PER_PAGE = 10;
-    const buffer = await generateCidadeRankingImage(players, page, dbSettings);
-    const attachment = new AttachmentBuilder(buffer, { name: `tabela_cidade_pagina_${page + 1}.png` });
+    const PER_PAGE = 8;
+    const imageUrl = await generateCidadeChartUrl(players, page, dbSettings);
 
     const totalPages = Math.ceil(players.length / PER_PAGE) || 1;
     const embed = new EmbedBuilder()
         .setTitle(`<:moeda:1554577755121917994> ${dbSettings.tabelaNome}`)
         .setDescription('Ranking dos cidadãos mais ricos com moedas guardadas no **Banco**.')
         .setColor(COLOR_MAP[dbSettings.tabelaCor] || 0xF1C40F)
-        .setImage(`attachment://tabela_cidade_pagina_${page + 1}.png`)
+        .setImage(imageUrl)
         .setTimestamp()
         .setFooter({ text: `Página ${page + 1} de${totalPages}` });
 
@@ -743,7 +394,7 @@ async function buildCidadeTabelaMessage(players, page, dbSettings, clientInstanc
         new ButtonBuilder().setCustomId(`cidade_next_${page}`).setLabel('Próxima ▶').setStyle(ButtonStyle.Primary).setDisabled((page + 1) * PER_PAGE >= players.length)
     );
 
-    return { embeds: [embed], files: [attachment], components: [row] };
+    return { embeds: [embed], components: [row] };
 }
 
 // ============================================================
@@ -799,7 +450,7 @@ client.once('ready', async () => {
             .setDescription('Resgata sua recompensa diária de moedas'),
         new SlashCommandBuilder()
             .setName('moneyinfo')
-            .setDescription('Mostra o saldo na carteira, banco e informações financeiras em imagem detalhada')
+            .setDescription('Mostra o saldo na carteira, banco e informações financeiras')
             .addUserOption(option => option.setName('usuario').setDescription('Ver informações de outro cidadão').setRequired(false)),
         new SlashCommandBuilder()
             .setName('dep')
@@ -860,8 +511,8 @@ client.on('interactionCreate', async interaction => {
                 const payload = await buildTabelaMessage(players, 0, guildData.settings);
                 return await interaction.editReply(payload);
             } catch (err) {
-                console.error('Erro ao gerar imagem da tabela:', err);
-                return await interaction.editReply({ content: '❌ Erro ao gerar a imagem da tabela.' });
+                console.error('Erro ao gerar tabela:', err);
+                return await interaction.editReply({ content: '❌ Erro ao gerar a tabela.' });
             }
         }
 
@@ -906,7 +557,6 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'analise') {
-            await interaction.deferReply();
             const targetUser = interaction.options.getUser('utilizador') || interaction.user;
             const pData = guildData.players[targetUser.id] || { points: 0, wins: 0, draws: 0, losses: 0 };
 
@@ -914,23 +564,22 @@ client.on('interactionCreate', async interaction => {
             const position = allPlayers.findIndex(p => p.userId === targetUser.id);
             const posText = position >= 0 ? position + 1 : allPlayers.length + 1;
 
-            const memberObj = await interaction.guild.members.fetch(targetUser.id).catch(() => targetUser);
+            const totalJogos = (pData.wins || 0) + (pData.losses || 0) + (pData.draws || 0);
+            const winRate = totalJogos > 0 ? ((pData.wins / totalJogos) * 100).toFixed(1) : '0.0';
 
-            try {
-                const buffer = await generateAnaliseImage(memberObj, pData, posText, guildData.settings);
-                const attachment = new AttachmentBuilder(buffer, { name: `analise_${targetUser.username}.png` });
+            const embed = new EmbedBuilder()
+                .setTitle(`<:trofeu:1554216098319044621> Perfil de Desempenho - ${targetUser.username}`)
+                .setColor(COLOR_MAP[guildData.settings.ligaCor] || 0xE74C3C)
+                .addFields(
+                    { name: '🏆 Liga Atual', value: `\`${guildData.settings.ligaNome || 'Geral'}\``, inline: false },
+                    { name: '📊 Rank e Pontos', value: `**#${posText}** • **${pData.points}** PTS`, inline: true },
+                    { name: '📈 Taxa de Vitória', value: `**${winRate}%**`, inline: true },
+                    { name: '⚔️ Estatísticas', value: `• Vitórias: **${pData.wins || 0}**\n• Empates: **${pData.draws || 0}**\n• Derrotas: **${pData.losses || 0}**`, inline: false }
+                )
+                .setThumbnail(targetUser.displayAvatarURL({ extension: 'png' }))
+                .setTimestamp();
 
-                const embed = new EmbedBuilder()
-                    .setTitle(`<:trofeu:1554216098319044621> Perfil de Desempenho - ${targetUser.username}`)
-                    .setColor(COLOR_MAP[guildData.settings.ligaCor] || 0xE74C3C)
-                    .setImage(`attachment://analise_${targetUser.username}.png`)
-                    .setTimestamp();
-
-                return await interaction.editReply({ embeds: [embed], files: [attachment] });
-            } catch (err) {
-                console.error('Erro ao gerar imagem de análise:', err);
-                return await interaction.editReply({ content: '❌ Erro ao gerar o painel de análise.' });
-            }
+            return await interaction.reply({ embeds: [embed] });
         }
 
         if (commandName === 'painel') {
@@ -1226,26 +875,26 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'moneyinfo') {
-            await interaction.deferReply();
             const targetUser = interaction.options.getUser('usuario') || interaction.user;
             const userObj = ensureCidadeUser(targetUser.id);
-            const memberObj = await interaction.guild.members.fetch(targetUser.id).catch(() => targetUser);
 
-            try {
-                const buffer = await generateMoneyInfoImage(memberObj, userObj, cidadeGuildData.settings);
-                const attachment = new AttachmentBuilder(buffer, { name: `moneyinfo_${targetUser.username}.png` });
+            const wallet = userObj.wallet || 0;
+            const bank = userObj.bank || 0;
+            const total = wallet + bank;
 
-                const embed = new EmbedBuilder()
-                    .setTitle(`<:estati:1554577205332283473> Informações Financeiras - ${targetUser.username}`)
-                    .setColor(COLOR_MAP[cidadeGuildData.settings.tabelaCor] || 0xF1C40F)
-                    .setImage(`attachment://moneyinfo_${targetUser.username}.png`)
-                    .setTimestamp();
+            const embed = new EmbedBuilder()
+                .setTitle(`<:estati:1554577205332283473> Informações Financeiras - ${targetUser.username}`)
+                .setDescription('Extrato de contas, carteira e património da cidade.')
+                .setColor(COLOR_MAP[cidadeGuildData.settings.tabelaCor] || 0xF1C40F)
+                .addFields(
+                    { name: '🪙 Carteira', value: `**${wallet.toLocaleString()}** moedas`, inline: true },
+                    { name: '🏦 Banco', value: `**${bank.toLocaleString()}** moedas`, inline: true },
+                    { name: '💰 Património Total', value: `**${total.toLocaleString()}** moedas`, inline: false }
+                )
+                .setThumbnail(targetUser.displayAvatarURL({ extension: 'png' }))
+                .setTimestamp();
 
-                return await interaction.editReply({ embeds: [embed], files: [attachment] });
-            } catch (err) {
-                console.error('Erro ao gerar imagem moneyinfo:', err);
-                return await interaction.editReply({ content: '❌ Erro ao gerar a imagem de informações financeiras.' });
-            }
+            return await interaction.reply({ embeds: [embed] });
         }
 
         if (commandName === 'dep') {
@@ -1434,7 +1083,7 @@ client.on('interactionCreate', async interaction => {
 
             const players = await getRankedCidadePlayers(cidadeGuildData.users, client);
             if (players.length === 0) {
-                return await interaction.editReply({ content: '⚠️ A tabela da cidade está vazia.', embeds: [], files: [], components: [] });
+                return await interaction.editReply({ content: '⚠️ A tabela da cidade está vazia.', embeds: [], components: [] });
             }
 
             try {
@@ -1799,7 +1448,7 @@ client.on('interactionCreate', async interaction => {
                 new ButtonBuilder().setCustomId('ticket_fechar').setLabel('Fechar Ticket').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
                 new ButtonBuilder().setCustomId('ticket_reivindicar').setLabel('Reivindicar').setStyle(ButtonStyle.Success).setEmoji('🛡️'),
                 new ButtonBuilder().setCustomId('ticket_transcript').setLabel('Transcript').setStyle(ButtonStyle.Secondary).setEmoji('📄'),
-                new ButtonBuilder().setCustomId('ticket_excluir').setLabel('Excluir').setStyle(ButtonStyle.Danger).setEmoji('🗑️️')
+                new ButtonBuilder().setCustomId('ticket_excluir').setLabel('Excluir').setStyle(ButtonStyle.Danger).setEmoji('🗑️')
             );
 
             await ticketChannel.send({
@@ -2097,7 +1746,7 @@ client.on('interactionCreate', async interaction => {
 
         const players = await getRankedPlayers(guildData.players, client);
         if (players.length === 0) {
-            return await interaction.editReply({ content: '⚠️ A tabela está vazia agora.', embeds: [], files: [], components: [] });
+            return await interaction.editReply({ content: '⚠️ A tabela está vazia agora.', embeds: [], components: [] });
         }
 
         try {
