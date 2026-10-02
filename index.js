@@ -8,7 +8,7 @@ const fs = require('fs');
 const express = require('express');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
-// --- Servidor Web para manter ativo (Render / Replit) ---
+// --- Servidor Web para manter ativo ---
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot Unificado (1v1 + Cidade + Tickets) a funcionar perfeitamente!'));
@@ -181,7 +181,6 @@ function getTicketGuildData(db, guildId) {
     return db.guilds[guildId];
 }
 
-// Cooldowns em memória (Isolados por Servidor usando chave "guildId_userId")
 const cidadeCooldowns = {
     work: new Map(),
     job: new Map(),
@@ -260,7 +259,7 @@ function drawRoundImage(ctx, img, x, y, size) {
 }
 
 // ============================================================
-// --- GERADOR DE IMAGEM: MONEYINFO DETALHADO COM ÍCONES ---
+// --- GERADOR DE IMAGEM: MONEYINFO ---
 // ============================================================
 async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     const canvas = createCanvas(900, 480);
@@ -334,10 +333,6 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
 
     ctx.fillStyle = '#2ecc71';
     roundRect(ctx, startX + 25, cardY + 25, 45, 45, 10, true, false);
-    ctx.fillStyle = '#1b1d24';
-    ctx.fillRect(startX + 35, cardY + 40, 25, 22);
-    ctx.fillStyle = '#2ecc71';
-    ctx.fillRect(startX + 45, cardY + 48, 8, 6);
 
     ctx.fillStyle = '#a0a2ab';
     ctx.font = 'bold 13px sans-serif';
@@ -362,10 +357,6 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
 
     ctx.fillStyle = '#3498db';
     roundRect(ctx, x2 + 25, cardY + 25, 45, 45, 10, true, false);
-    ctx.fillStyle = '#1b1d24';
-    ctx.fillRect(x2 + 35, cardY + 40, 4, 18);
-    ctx.fillRect(x2 + 45, cardY + 40, 4, 18);
-    ctx.fillRect(x2 + 55, cardY + 40, 4, 18);
 
     ctx.fillStyle = '#a0a2ab';
     ctx.font = 'bold 13px sans-serif';
@@ -390,10 +381,6 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
 
     ctx.fillStyle = selectedColor;
     roundRect(ctx, x3 + 25, cardY + 25, 45, 45, 10, true, false);
-    ctx.fillStyle = '#1b1d24';
-    ctx.fillRect(x3 + 34, cardY + 52, 6, 12);
-    ctx.fillRect(x3 + 44, cardY + 45, 6, 19);
-    ctx.fillRect(x3 + 54, cardY + 37, 6, 27);
 
     ctx.fillStyle = '#a0a2ab';
     ctx.font = 'bold 13px sans-serif';
@@ -734,8 +721,10 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
             ctx.fill();
         }
 
+        // CORREÇÃO: Força o texto do nome do cidadão a ser sempre branco puro (#ffffff)
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'left';
         ctx.fillText((p.username || 'Cidadão').slice(0, 20), 175, startY + 34);
 
         ctx.fillStyle = '#f1c40f';
@@ -898,7 +887,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
             const players = await getRankedPlayers(guildData.players, client);
             if (players.length === 0) {
-                return await interaction.editReply({ content: '⚠️️ Ainda não existem jogadores com pontuação positiva na tabela 1v1 deste servidor!' });
+                return await interaction.editReply({ content: '⚠ Ainda não existem jogadores com pontuação positiva na tabela 1v1 deste servidor!' });
             }
             try {
                 const payload = await buildTabelaMessage(players, 0, guildData.settings);
@@ -2133,7 +2122,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.update({ content: '✅ Desafio publicado com sucesso no canal!', embeds: [], components: [] });
     }
 
-    if (interaction.isButton() && (interaction.customId.startsWith('tabela_prev_') || interaction.customId.startsWith('tabela_next_'))) {
+    if (interaction.isButton() && interaction.customId.startsWith('tabela_prev_') || interaction.customId.startsWith('tabela_next_')) {
         await interaction.deferUpdate();
         const pageChange = interaction.customId.startsWith('tabela_next_') ? 1 : -1;
         const currentPage = parseInt(interaction.customId.split('_').pop(), 10);
