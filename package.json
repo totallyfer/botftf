@@ -1,13 +1,16 @@
 {
-  "name": "bot-unificado",
+  "name": "bot-discord-completo",
   "version": "1.0.0",
+  "description": "Bot completo com economia, cidade, 1v1 e tickets",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.62",
     "discord.js": "^14.14.1",
-    "express": "^4.19.2"
+    "sqlite3": "^5.1.7"
+  },
+  "engines": {
+    "node": "18.x || 20.x"
   }
 }
