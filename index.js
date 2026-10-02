@@ -274,7 +274,6 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.font = '14px sans-serif';
     ctx.fillText('Extrato de contas, carteira e património da cidade', 180, 95);
 
-    // Avatar seguro por ícone
     ctx.fillStyle = selectedColor;
     ctx.beginPath();
     ctx.arc(100, 80, 52, 0, Math.PI * 2);
@@ -296,7 +295,7 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.font = '12px sans-serif';
-    ctx.fillText('STATUS: Cidadão Ativo 🏙️', canvas.width - 50, 92);
+    ctx.fillText('STATUS: Cidadão Ativo', canvas.width - 50, 92);
 
     const wallet = userObj.wallet || 0;
     const bank = userObj.bank || 0;
@@ -407,7 +406,6 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.font = 'bold 14px sans-serif';
     ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), 620, 68);
 
-    // Avatar seguro
     ctx.fillStyle = selectedColor;
     ctx.beginPath();
     ctx.arc(150, 200, 78, 0, Math.PI * 2);
@@ -496,43 +494,41 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
 // ============================================================
 // --- GERADOR DE IMAGEM: TABELA DE RANKING (1V1) ---
 // ============================================================
-const ROW_H = 75, W = 800, HEADER_H = 130;
-
 async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
     const PER_PAGE = 4;
     const startIdx = page * PER_PAGE;
     const current = playersArray.slice(startIdx, startIdx + PER_PAGE);
-    const H = HEADER_H + Math.max(current.length, 1) * ROW_H + 60;
+    const H = Math.max(400, 130 + Math.max(current.length, 1) * 75 + 60);
 
-    const canvas = createCanvas(W, H);
+    const canvas = createCanvas(800, H);
     const ctx = canvas.getContext('2d');
     const selectedColor = COLOR_MAP[dbSettings.ligaCor] || '#e74c3c';
 
     ctx.fillStyle = selectedColor;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, 800, H);
 
     ctx.fillStyle = 'rgba(15, 15, 18, 0.85)';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, 800, H);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 32px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('TABELA 1V1', W / 2, 45);
+    ctx.fillText('TABELA 1V1', 400, 45);
 
     ctx.strokeStyle = selectedColor;
     ctx.lineWidth = 1.5;
     roundRect(ctx, 250, 60, 300, 35, 8, false, true);
     ctx.fillStyle = '#888888';
     ctx.font = '9px sans-serif';
-    ctx.fillText('LIGA ATUAL', W / 2, 75);
+    ctx.fillText('LIGA ATUAL', 400, 75);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 11px sans-serif';
-    ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), W / 2, 88);
+    ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), 400, 88);
 
     if (current.length === 0) {
         ctx.fillStyle = '#888888';
         ctx.font = '20px sans-serif';
-        ctx.fillText('Nenhum jogador pontuado.', W / 2, HEADER_H + 50);
+        ctx.fillText('Nenhum jogador pontuado.', 400, 180);
         return canvas.toBuffer('image/png');
     }
 
@@ -555,7 +551,6 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
         ctx.textAlign = 'left';
         ctx.fillText(`#${rank}`, 75, startY + 36);
 
-        // Ícone seguro
         ctx.fillStyle = selectedColor;
         ctx.beginPath();
         ctx.arc(150, startY + 30, 18, 0, Math.PI * 2);
@@ -640,7 +635,7 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
     const ROW_H = 65;
     const HEADER_H = 120;
     const W = 800;
-    const H = HEADER_H + Math.max(current.length, 1) * ROW_H + 50;
+    const H = Math.max(400, HEADER_H + (Math.max(current.length, 1) * ROW_H) + 60);
 
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext('2d');
@@ -648,7 +643,7 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
 
     ctx.fillStyle = selectedColor;
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(15, 15, 18, 0.90)';
+    ctx.fillStyle = 'rgba(15, 15, 18, 0.95)';
     ctx.fillRect(0, 0, W, H);
 
     ctx.fillStyle = '#ffffff';
@@ -667,45 +662,43 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
         return canvas.toBuffer('image/png');
     }
 
-    let startY = 105;
+    let startY = 110;
     for (let i = 0; i < current.length; i++) {
         const p = current[i];
         const rank = startIdx + i + 1;
 
         ctx.fillStyle = 'rgba(30, 31, 34, 0.85)';
-        roundRect(ctx, 40, startY, 720, 55, 8, true, false);
+        roundRect(ctx, 40, startY, 720, 52, 8, true, false);
 
         if (rank === 1) ctx.fillStyle = '#f1c40f';
         else if (rank === 2) ctx.fillStyle = '#95a5a6';
         else if (rank === 3) ctx.fillStyle = '#d35400';
         else ctx.fillStyle = selectedColor;
-        ctx.fillRect(40, startY, 5, 55);
+        ctx.fillRect(40, startY, 5, 52);
 
         ctx.fillStyle = rank === 1 ? '#f1c40f' : rank === 2 ? '#95a5a6' : rank === 3 ? '#d35400' : '#ffffff';
         ctx.font = 'bold 18px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(`#${rank}`, 65, startY + 34);
+        ctx.fillText(`#${rank}`, 65, startY + 33);
 
-        // Ícone seguro
         ctx.fillStyle = selectedColor;
         ctx.beginPath();
-        ctx.arc(135, startY + 27, 18, 0, Math.PI * 2);
+        ctx.arc(135, startY + 26, 16, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#121318';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`👤`, 135, startY + 31);
+        ctx.beginPath();
+        ctx.arc(135, startY + 26, 12, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Nome do cidadão em branco puro
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 16px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText((p.username || 'Cidadão').slice(0, 20), 175, startY + 34);
+        ctx.fillText((p.username || 'Cidadão').slice(0, 20), 175, startY + 33);
 
         ctx.fillStyle = '#f1c40f';
         ctx.font = 'bold 18px sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(`🪙 ${p.bank.toLocaleString()} moedas`, 735, startY + 35);
+        ctx.fillText(`${p.bank.toLocaleString()} moedas`, 735, startY + 34);
 
         startY += 62;
     }
@@ -898,7 +891,7 @@ client.on('interactionCreate', async interaction => {
 
             const mapSelect = new StringSelectMenuBuilder()
                 .setCustomId(`escolher_mapa_${interaction.user.id}_${adversario ? adversario.id : 'aleatorio'}`)
-                .setPlaceholder('🗺️️ Selecione o mapa do confronto...')
+                .setPlaceholder('🗺 Selecione o mapa do confronto...')
                 .addOptions([
                     { label: 'Homestead', value: 'Homestead' },
                     { label: 'Airport', value: 'Airport' },
@@ -1806,7 +1799,7 @@ client.on('interactionCreate', async interaction => {
                 new ButtonBuilder().setCustomId('ticket_fechar').setLabel('Fechar Ticket').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
                 new ButtonBuilder().setCustomId('ticket_reivindicar').setLabel('Reivindicar').setStyle(ButtonStyle.Success).setEmoji('🛡️'),
                 new ButtonBuilder().setCustomId('ticket_transcript').setLabel('Transcript').setStyle(ButtonStyle.Secondary).setEmoji('📄'),
-                new ButtonBuilder().setCustomId('ticket_excluir').setLabel('Excluir').setStyle(ButtonStyle.Danger).setEmoji('🗑️')
+                new ButtonBuilder().setCustomId('ticket_excluir').setLabel('Excluir').setStyle(ButtonStyle.Danger).setEmoji('🗑️️')
             );
 
             await ticketChannel.send({
