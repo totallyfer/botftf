@@ -4,14 +4,14 @@ const {
     StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, 
     ChannelType, PermissionFlagsBits, AttachmentBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder 
 } = require('discord.js');
-const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const fs = require('fs');
 const express = require('express');
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
 // --- Servidor Web para manter ativo ---
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('Bot Unificado a funcionar perfeitamente!'));
+app.get('/', (req, res) => res.send('Bot Unificado (1v1 + Cidade + Tickets) a funcionar perfeitamente!'));
 app.listen(PORT, () => console.log(`Servidor web na porta ${PORT}`));
 
 const client = new Client({
@@ -181,6 +181,14 @@ function getTicketGuildData(db, guildId) {
     return db.guilds[guildId];
 }
 
+const cidadeCooldowns = {
+    work: new Map(),
+    job: new Map(),
+    slut: new Map(),
+    daily: new Map(),
+    rob: new Map()
+};
+
 // ============================================================
 // --- ATUALIZAR CARGOS DO PÓDIO (1V1) ---
 // ============================================================
@@ -222,199 +230,393 @@ async function atualizarCargosPodio(guild, guildData) {
 }
 
 // ============================================================
-// --- GERADOR DE IMAGENS VIA @NAPI-RS/CANVAS ---
+// --- FUNÇÕES AUXILIARES DE CANVAS ---
 // ============================================================
-
-async function gerarCardPerfil(user, pData, position, ligaNome, ligaCorHex) {
-    const canvas = createCanvas(700, 250);
-    const ctx = canvas.getContext('2d');
-
-    // Fundo do Card (Estilo escuro do Discord)
-    ctx.fillStyle = '#2f3136';
+function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
     ctx.beginPath();
-    ctx.roundRect(0, 0, canvas.width, canvas.height, 15);
-    ctx.fill();
-
-    // Barra lateral colorida da liga
-    ctx.fillStyle = ligaCorHex || '#f1c40f';
-    ctx.beginPath();
-    ctx.roundRect(0, 0, 15, canvas.height, [15, 0, 0, 15]);
-    ctx.fill();
-
-    // Texto: Username
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px sans-serif';
-    ctx.fillText(user.username, 210, 60);
-
-    // Texto: Liga
-    ctx.font = '16px sans-serif';
-    ctx.fillStyle = '#b9bbbe';
-    ctx.fillText(`🏆 Liga: ${ligaNome || 'Geral'}`, 210, 95);
-
-    // Texto: Rank e Pontos
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillStyle = '#f1c40f';
-    ctx.fillText(`Rank #${position}  •${pData.points} Pontos`, 210, 135);
-
-    // Estatísticas (Vitórias / Derrotas / WinRate)
-    const totalJogos = (pData.wins || 0) + (pData.losses || 0) + (pData.draws || 0);
-    const winRate = totalJogos > 0 ? ((pData.wins / totalJogos) * 100).toFixed(1) : '0.0';
-
-    ctx.font = '15px sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(`Vitórias: ${pData.wins || 0}  |  Derrotas: ${pData.losses \vert{}\vert{} 0}  \vert{}  Empates:${pData.draws || 0}`, 210, 175);
-    ctx.fillText(`Taxa de Vitória (WinRate): ${winRate}%`, 210, 205);
-
-    // Carregar e desenhar o Avatar Circular
-    try {
-        const avatarURL = user.displayAvatarURL({ extension: 'png', size: 256 });
-        const avatar = await loadImage(avatarURL);
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(115, 125, 60, 0, Math.PI * 2, true);
-        ctx.closePath();
-        ctx.clip();
-        
-        ctx.drawImage(avatar, 55, 65, 120, 120);
-        ctx.restore();
-
-        // Borda ao redor do avatar
-        ctx.strokeStyle = ligaCorHex || '#f1c40f';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(115, 125, 60, 0, Math.PI * 2, true);
-        ctx.stroke();
-    } catch (e) {
-        console.error('Erro ao carregar o avatar no Canvas:', e);
-    }
-
-    return new AttachmentBuilder(await canvas.encode('png'), { name: 'perfil.png' });
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
 }
 
-async function gerarTabelaCanvas(playersArray, page = 0, dbSettings = {}) {
-    const PER_PAGE = 5;
-    const startIdx = page * PER_PAGE;
-    const current = playersArray.slice(startIdx, startIdx + PER_PAGE);
+function drawRoundImage(ctx, img, x, y, size) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(img, x, y, size, size);
+    ctx.restore();
+}
 
+// ============================================================
+// --- GERADOR DE IMAGEM: MONEYINFO ---
+// ============================================================
+async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
+    const canvas = createCanvas(900, 480);
+    const ctx = canvas.getContext('2d');
+    const selectedColor = COLOR_MAP[dbSettings.tabelaCor] || '#f1c40f';
+
+    ctx.fillStyle = selectedColor;
+    ctx.fillRect(0, 0, canvas.width, 160);
+
+    ctx.fillStyle = '#121318';
+    ctx.fillRect(0, 150, canvas.width, canvas.height - 150);
+
+    ctx.fillStyle = selectedColor;
+    ctx.fillRect(0, 146, canvas.width, 4);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('PAINEL FINANCEIRO', 180, 70);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Extrato de contas, carteira e património da cidade', 180, 95);
+
+    let avatarImg = null;
+    try {
+        const avatarURL = member.displayAvatarURL ? member.displayAvatarURL({ extension: 'png', size: 256 }) : `https://cdn.discordapp.com/embed/avatars/0.png`;
+        avatarImg = await loadImage(avatarURL);
+    } catch {}
+
+    ctx.fillStyle = selectedColor;
+    ctx.beginPath();
+    ctx.arc(100, 80, 52, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (avatarImg) {
+        drawRoundImage(ctx, avatarImg, 50, 30, 100);
+    } else {
+        ctx.fillStyle = '#2c2d30';
+        ctx.beginPath();
+        ctx.arc(100, 80, 48, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px sans-serif';
+    const username = member.displayName || member.username || 'Cidadão';
+    ctx.fillText(`@${username.slice(0, 20)}`, canvas.width - 50, 70);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('STATUS: Cidadão Ativo 🏙️', canvas.width - 50, 92);
+
+    const wallet = userObj.wallet || 0;
+    const bank = userObj.bank || 0;
+    const total = wallet + bank;
+
+    const cardY = 195;
+    const cardW = 245;
+    const cardH = 230;
+    const cardSpacing = 30;
+    const startX = 50;
+
+    // Carteira
+    ctx.fillStyle = '#1b1d24';
+    roundRect(ctx, startX, cardY, cardW, cardH, 16, true, false);
+    ctx.strokeStyle = '#2ecc71';
+    ctx.lineWidth = 2;
+    roundRect(ctx, startX, cardY, cardW, cardH, 16, false, true);
+
+    ctx.fillStyle = '#2ecc71';
+    roundRect(ctx, startX + 25, cardY + 25, 45, 45, 10, true, false);
+    ctx.fillStyle = '#1b1d24';
+    ctx.fillRect(startX + 35, cardY + 40, 25, 22);
+    ctx.fillStyle = '#2ecc71';
+    ctx.fillRect(startX + 45, cardY + 48, 8, 6);
+
+    ctx.fillStyle = '#a0a2ab';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('DINHEIRO EM MÃOS', startX + 25, cardY + 100);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('CARTEIRA', startX + 25, cardY + 118);
+
+    ctx.fillStyle = '#2ecc71';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`🪙 ${wallet.toLocaleString()}`, startX + 25, cardY + 175);
+
+    // Banco
+    const x2 = startX + cardW + cardSpacing;
+    ctx.fillStyle = '#1b1d24';
+    roundRect(ctx, x2, cardY, cardW, cardH, 16, true, false);
+    ctx.strokeStyle = '#3498db';
+    ctx.lineWidth = 2;
+    roundRect(ctx, x2, cardY, cardW, cardH, 16, false, true);
+
+    ctx.fillStyle = '#3498db';
+    roundRect(ctx, x2 + 25, cardY + 25, 45, 45, 10, true, false);
+    ctx.fillStyle = '#1b1d24';
+    ctx.fillRect(x2 + 35, cardY + 40, 4, 18);
+    ctx.fillRect(x2 + 45, cardY + 40, 4, 18);
+    ctx.fillRect(x2 + 55, cardY + 40, 4, 18);
+
+    ctx.fillStyle = '#a0a2ab';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('PROTEGIDO NO COFRE', x2 + 25, cardY + 100);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('BANCO CENTRAL', x2 + 25, cardY + 118);
+
+    ctx.fillStyle = '#3498db';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`🏦 ${bank.toLocaleString()}`, x2 + 25, cardY + 175);
+
+    // Património
+    const x3 = x2 + cardW + cardSpacing;
+    ctx.fillStyle = '#1b1d24';
+    roundRect(ctx, x3, cardY, cardW, cardH, 16, true, false);
+    ctx.strokeStyle = selectedColor;
+    ctx.lineWidth = 2;
+    roundRect(ctx, x3, cardY, cardW, cardH, 16, false, true);
+
+    ctx.fillStyle = selectedColor;
+    roundRect(ctx, x3 + 25, cardY + 25, 45, 45, 10, true, false);
+    ctx.fillStyle = '#1b1d24';
+    ctx.fillRect(x3 + 34, cardY + 52, 6, 12);
+    ctx.fillRect(x3 + 44, cardY + 45, 6, 19);
+    ctx.fillRect(x3 + 54, cardY + 37, 6, 27);
+
+    ctx.fillStyle = '#a0a2ab';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('SOMA GERAL', x3 + 25, cardY + 100);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('PATRIMÓNIO TOTAL', x3 + 25, cardY + 118);
+
+    ctx.fillStyle = '#f1c40f';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`💰 ${total.toLocaleString()}`, x3 + 25, cardY + 175);
+
+    return canvas.toBuffer('image/png');
+}
+
+// ============================================================
+// --- GERADOR DE IMAGEM: ANÁLISE DE PERFIL (1V1) ---
+// ============================================================
+async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}) {
     const canvas = createCanvas(800, 450);
     const ctx = canvas.getContext('2d');
+    const selectedColor = COLOR_MAP[dbSettings.ligaCor] || '#e74c3c';
 
-    // Fundo geral
-    ctx.fillStyle = '#121318';
+    ctx.fillStyle = selectedColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = 'rgba(15, 15, 18, 0.82)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Título da Tabela
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 22px sans-serif';
+    ctx.strokeStyle = selectedColor;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 480, 30, 280, 50, 10, false, true);
+    ctx.fillStyle = '#888888';
+    ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    const titulo = (dbSettings.ligaNome || 'TABELA 1V1').toUpperCase();
-    ctx.fillText(titulo, canvas.width / 2, 45);
+    ctx.fillText('LIGA ATUAL', 620, 50);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), 620, 68);
 
-    let startY = 85;
-    const colorHex = COLOR_MAP[dbSettings.ligaCor] || '#f1c40f';
+    let avatarImg = null;
+    try {
+        const avatarURL = member.displayAvatarURL ? member.displayAvatarURL({ extension: 'png', size: 256 }) : `https://cdn.discordapp.com/embed/avatars/0.png`;
+        avatarImg = await loadImage(avatarURL);
+    } catch {}
 
+    if (avatarImg) {
+        drawRoundImage(ctx, avatarImg, 75, 125, 150);
+    } else {
+        ctx.fillStyle = '#2c2d30';
+        ctx.beginPath();
+        ctx.arc(150, 200, 75, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px sans-serif';
+    const username = member.displayName || member.username || 'Jogador';
+    ctx.fillText(username.slice(0, 20), 270, 170);
+
+    ctx.fillStyle = selectedColor;
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(`RANK #${rankPosition} •${stats.points} PTS`, 270, 210);
+
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '11px sans-serif';
+    ctx.fillText('TAXA DE VITÓRIA', 270, 260);
+    ctx.textAlign = 'right';
+
+    const totalJogos = (stats.wins || 0) + (stats.losses || 0) + (stats.draws || 0);
+    const winRate = totalJogos > 0 ? ((stats.wins / totalJogos) * 100).toFixed(1) : '0.0';
+    ctx.fillText(`${winRate}%`, 760, 260);
+
+    ctx.fillStyle = '#2c2d30';
+    roundRect(ctx, 270, 275, 490, 8, 4, true, false);
+    
+    ctx.fillStyle = selectedColor;
+    const barraWidth = Math.max(10, (490 * parseFloat(winRate)) / 100);
+    roundRect(ctx, 270, 275, barraWidth, 8, 4, true, false);
+
+    const boxWidth = 153;
+    const boxHeight = 100;
+    const boxY = 310;
+
+    // Vitórias
+    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
+    roundRect(ctx, 270, boxY, boxWidth, boxHeight, 12, true, false);
+    ctx.fillStyle = '#2ecc71';
+    ctx.fillRect(270, boxY, 4, boxHeight);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('VITÓRIAS', 290, boxY + 30);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText(stats.wins || 0, 290, boxY + 75);
+
+    // Empates
+    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
+    roundRect(ctx, 438, boxY, boxWidth, boxHeight, 12, true, false);
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillRect(438, boxY, 4, boxHeight);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('EMPATES', 458, boxY + 30);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText(stats.draws || 0, 458, boxY + 75);
+
+    // Derrotas
+    ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
+    roundRect(ctx, 606, boxY, boxWidth, boxHeight, 12, true, false);
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(606, boxY, 4, boxHeight);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('DERROTAS', 626, boxY + 30);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText(stats.losses || 0, 626, boxY + 75);
+
+    return canvas.toBuffer('image/png');
+}
+
+// ============================================================
+// --- GERADOR DE IMAGEM: TABELA DE RANKING (1V1) ---
+// ============================================================
+const ROW_H = 75, W = 800, HEADER_H = 130;
+
+async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
+    const PER_PAGE = 4;
+    const startIdx = page * PER_PAGE;
+    const current = playersArray.slice(startIdx, startIdx + PER_PAGE);
+    const H = HEADER_H + Math.max(current.length, 1) * ROW_H + 60;
+
+    const canvas = createCanvas(W, H);
+    const ctx = canvas.getContext('2d');
+    const selectedColor = COLOR_MAP[dbSettings.ligaCor] || '#e74c3c';
+
+    ctx.fillStyle = selectedColor;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = 'rgba(15, 15, 18, 0.85)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('TABELA 1V1', W / 2, 45);
+
+    ctx.strokeStyle = selectedColor;
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, 250, 60, 300, 35, 8, false, true);
+    ctx.fillStyle = '#888888';
+    ctx.font = '9px sans-serif';
+    ctx.fillText('LIGA ATUAL', W / 2, 75);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), W / 2, 88);
+
+    if (current.length === 0) {
+        ctx.fillStyle = '#888888';
+        ctx.font = '20px sans-serif';
+        ctx.fillText('Nenhum jogador pontuado.', W / 2, HEADER_H + 50);
+        return canvas.toBuffer('image/png');
+    }
+
+    let startY = 120;
     for (let i = 0; i < current.length; i++) {
         const p = current[i];
-        const realIdx = startIdx + i + 1;
+        const rank = startIdx + i + 1;
 
-        // Caixa de fundo para cada jogador
-        ctx.fillStyle = '#2f3136';
-        ctx.beginPath();
-        ctx.roundRect(40, startY, 720, 60, 8);
-        ctx.fill();
+        ctx.fillStyle = 'rgba(30, 31, 34, 0.85)';
+        roundRect(ctx, 50, startY, 700, 60, 10, true, false);
 
-        // Posição / Ranking
-        ctx.fillStyle = realIdx === 1 ? '#f1c40f' : realIdx === 2 ? '#bdc3c7' : realIdx === 3 ? '#e67e22' : '#ffffff';
+        if (rank === 1) ctx.fillStyle = '#f1c40f';
+        else if (rank === 2) ctx.fillStyle = '#95a5a6';
+        else if (rank === 3) ctx.fillStyle = '#d35400';
+        else ctx.fillStyle = selectedColor;
+        ctx.fillRect(50, startY, 5, 60);
+
+        ctx.fillStyle = rank === 1 ? '#f1c40f' : rank === 2 ? '#95a5a6' : rank === 3 ? '#d35400' : '#ffffff';
         ctx.font = 'bold 20px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(`#${realIdx}`, 70, startY + 37);
+        ctx.fillText(`#${rank}`, 75, startY + 36);
 
-        // Nome do Jogador
-        let username = p.username || 'Jogador';
+        let avatarImg = null;
+        try {
+            if (p.avatarURL) avatarImg = await loadImage(p.avatarURL);
+        } catch {}
+
+        if (avatarImg) {
+            drawRoundImage(ctx, avatarImg, 130, startY + 10, 40);
+        } else {
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(150, startY + 30, 20, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         ctx.fillStyle = '#ffffff';
-        ctx.font = '18px sans-serif';
-        ctx.fillText(username, 140, startY + 37);
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillText((p.username || 'Jogador').slice(0, 18), 185, startY + 36);
 
-        // Pontuação alinhada à direita
-        ctx.fillStyle = colorHex;
-        ctx.font = 'bold 20px sans-serif';
+        const total = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
+        const wr = total > 0 ? ((p.wins / total) * 100).toFixed(1) : '0.0';
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(`TAXA DE VITÓRIA: ${wr}%`, 480, startY + 36);
+
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = 'bold 24px sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(`${p.points} PTS`, 730, startY + 37);
+        ctx.fillText(p.points, 725, startY + 38);
 
         startY += 70;
     }
 
-    if (current.length === 0) {
-        ctx.fillStyle = '#b9bbbe';
-        ctx.font = '16px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Nenhum jogador encontrado nesta página.', canvas.width / 2, canvas.height / 2);
-    }
-
-    return new AttachmentBuilder(await canvas.encode('png'), { name: 'tabela.png' });
-}
-
-async function gerarCidadeTabelaCanvas(playersArray, page = 0, dbSettings = {}) {
-    const PER_PAGE = 8;
-    const startIdx = page * PER_PAGE;
-    const current = playersArray.slice(startIdx, startIdx + PER_PAGE);
-
-    const canvas = createCanvas(800, 520);
-    const ctx = canvas.getContext('2d');
-
-    // Fundo geral
-    ctx.fillStyle = '#121318';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Título da Tabela
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.textAlign = 'center';
-    const titulo = (dbSettings.tabelaNome || 'CIDADE - RANKING').toUpperCase();
-    ctx.fillText(titulo, canvas.width / 2, 45);
-
-    let startY = 70;
-    const colorHex = COLOR_MAP[dbSettings.tabelaCor] || '#f1c40f';
-
-    for (let i = 0; i < current.length; i++) {
-        const p = current[i];
-        const realIdx = startIdx + i + 1;
-
-        // Caixa de fundo
-        ctx.fillStyle = '#2f3136';
-        ctx.beginPath();
-        ctx.roundRect(40, startY, 720, 48, 6);
-        ctx.fill();
-
-        // Rank
-        ctx.fillStyle = realIdx === 1 ? '#f1c40f' : realIdx === 2 ? '#bdc3c7' : realIdx === 3 ? '#e67e22' : '#ffffff';
-        ctx.font = 'bold 16px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(`#${realIdx}`, 65, startY + 30);
-
-        // Nome do Cidadão
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '16px sans-serif';
-        ctx.fillText(p.username || 'Cidadão', 130, startY + 30);
-
-        // Banco
-        ctx.fillStyle = colorHex;
-        ctx.font = 'bold 16px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(`🪙 ${(p.bank || 0).toLocaleString()} moedas`, 730, startY + 30);
-
-        startY += 54;
-    }
-
-    if (current.length === 0) {
-        ctx.fillStyle = '#b9bbbe';
-        ctx.font = '16px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Nenhum cidadão encontrado.', canvas.width / 2, canvas.height / 2);
-    }
-
-    return new AttachmentBuilder(await canvas.encode('png'), { name: 'cidade_tabela.png' });
+    return canvas.toBuffer('image/png');
 }
 
 async function getRankedPlayers(guildPlayersObj, clientInstance) {
@@ -431,22 +633,24 @@ async function getRankedPlayers(guildPlayersObj, clientInstance) {
             wins: p.wins || 0,
             losses: p.losses || 0,
             draws: p.draws || 0,
-            username: u ? u.username : 'Jogador'
+            username: u ? u.username : 'Jogador',
+            avatarURL: u ? u.displayAvatarURL({ extension: 'png', size: 128 }) : null
         });
     }
     return enriched;
 }
 
 async function buildTabelaMessage(players, page, dbSettings = {}) {
-    const PER_PAGE = 5;
-    const attachment = await gerarTabelaCanvas(players, page, dbSettings);
+    const PER_PAGE = 4;
+    const buffer = await generateRankingImage(players, page, dbSettings);
+    const attachment = new AttachmentBuilder(buffer, { name: `tabela_pagina_${page + 1}.png` });
 
     const totalPages = Math.ceil(players.length / PER_PAGE) || 1;
     const ligaTitulo = dbSettings.ligaNome ? ` - ${dbSettings.ligaNome}` : '';
     const embed = new EmbedBuilder()
         .setTitle(`<a:brasil:1554216254187765960> Tabela de Classificação${ligaTitulo}`)
         .setColor(COLOR_MAP[dbSettings.ligaCor] || 0xE74C3C)
-        .setImage('attachment://tabela.png')
+        .setImage(`attachment://tabela_pagina_${page + 1}.png`)
         .setTimestamp()
         .setFooter({ text: `Página ${page + 1} de${totalPages}` });
 
@@ -455,7 +659,93 @@ async function buildTabelaMessage(players, page, dbSettings = {}) {
         new ButtonBuilder().setCustomId(`tabela_next_${page}`).setLabel('Próxima ▶').setStyle(ButtonStyle.Primary).setDisabled((page + 1) * PER_PAGE >= players.length)
     );
 
-    return { embeds: [embed], components: [row], files: [attachment] };
+    return { embeds: [embed], files: [attachment], components: [row] };
+}
+
+// ============================================================
+// --- GERADOR DE IMAGEM: TABELA DA CIDADE (1-10) ---
+// ============================================================
+async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {}) {
+    const PER_PAGE = 10;
+    const startIdx = page * PER_PAGE;
+    const current = playersArray.slice(startIdx, startIdx + PER_PAGE);
+    
+    const ROW_H = 65;
+    const HEADER_H = 120;
+    const W = 800;
+    const H = HEADER_H + Math.max(current.length, 1) * ROW_H + 50;
+
+    const canvas = createCanvas(W, H);
+    const ctx = canvas.getContext('2d');
+    const selectedColor = COLOR_MAP[dbSettings.tabelaCor] || '#f1c40f';
+
+    ctx.fillStyle = selectedColor;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(15, 15, 18, 0.90)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText((dbSettings.tabelaNome || 'CIDADE - RANKING').toUpperCase(), W / 2, 45);
+
+    ctx.fillStyle = selectedColor;
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText(`EXIBINDO DO 1 AO 10 (BANCO)`, W / 2, 75);
+
+    if (current.length === 0) {
+        ctx.fillStyle = '#888888';
+        ctx.font = '18px sans-serif';
+        ctx.fillText('Nenhum cidadão com dinheiro no banco.', W / 2, HEADER_H + 50);
+        return canvas.toBuffer('image/png');
+    }
+
+    let startY = 105;
+    for (let i = 0; i < current.length; i++) {
+        const p = current[i];
+        const rank = startIdx + i + 1;
+
+        ctx.fillStyle = 'rgba(30, 31, 34, 0.85)';
+        roundRect(ctx, 40, startY, 720, 55, 8, true, false);
+
+        if (rank === 1) ctx.fillStyle = '#f1c40f';
+        else if (rank === 2) ctx.fillStyle = '#95a5a6';
+        else if (rank === 3) ctx.fillStyle = '#d35400';
+        else ctx.fillStyle = selectedColor;
+        ctx.fillRect(40, startY, 5, 55);
+
+        ctx.fillStyle = rank === 1 ? '#f1c40f' : rank === 2 ? '#95a5a6' : rank === 3 ? '#d35400' : '#ffffff';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`#${rank}`, 65, startY + 34);
+
+        let avatarImg = null;
+        try {
+            if (p.avatarURL) avatarImg = await loadImage(p.avatarURL);
+        } catch {}
+
+        if (avatarImg) {
+            drawRoundImage(ctx, avatarImg, 115, startY + 7, 40);
+        } else {
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(135, startY + 27, 20, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText((p.username || 'Cidadão').slice(0, 20), 175, startY + 34);
+
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(`🪙 ${p.bank.toLocaleString()} moedas`, 735, startY + 35);
+
+        startY += 62;
+    }
+
+    return canvas.toBuffer('image/png');
 }
 
 async function getRankedCidadePlayers(guildUsersObj, clientInstance) {
@@ -470,22 +760,24 @@ async function getRankedCidadePlayers(guildUsersObj, clientInstance) {
             userId: p.userId,
             bank: p.bank,
             wallet: p.wallet || 0,
-            username: u ? u.username : 'Cidadão'
+            username: u ? u.username : 'Cidadão',
+            avatarURL: u ? u.displayAvatarURL({ extension: 'png', size: 128 }) : null
         });
     }
     return enriched;
 }
 
-async function buildCidadeTabelaMessage(players, page, dbSettings) {
-    const PER_PAGE = 8;
-    const attachment = await gerarCidadeTabelaCanvas(players, page, dbSettings);
+async function buildCidadeTabelaMessage(players, page, dbSettings, clientInstance) {
+    const PER_PAGE = 10;
+    const buffer = await generateCidadeRankingImage(players, page, dbSettings);
+    const attachment = new AttachmentBuilder(buffer, { name: `tabela_cidade_pagina_${page + 1}.png` });
 
     const totalPages = Math.ceil(players.length / PER_PAGE) || 1;
     const embed = new EmbedBuilder()
         .setTitle(`<:moeda:1554577755121917994> ${dbSettings.tabelaNome}`)
         .setDescription('Ranking dos cidadãos mais ricos com moedas guardadas no **Banco**.')
         .setColor(COLOR_MAP[dbSettings.tabelaCor] || 0xF1C40F)
-        .setImage('attachment://cidade_tabela.png')
+        .setImage(`attachment://tabela_cidade_pagina_${page + 1}.png`)
         .setTimestamp()
         .setFooter({ text: `Página ${page + 1} de${totalPages}` });
 
@@ -494,11 +786,11 @@ async function buildCidadeTabelaMessage(players, page, dbSettings) {
         new ButtonBuilder().setCustomId(`cidade_next_${page}`).setLabel('Próxima ▶').setStyle(ButtonStyle.Primary).setDisabled((page + 1) * PER_PAGE >= players.length)
     );
 
-    return { embeds: [embed], components: [row], files: [attachment] };
+    return { embeds: [embed], files: [attachment], components: [row] };
 }
 
 // ============================================================
-// --- REGISTO DOS COMANDOS SLASH ---
+// --- REGISTO DE TODOS OS COMANDOS SLASH ---
 // ============================================================
 client.once('ready', async () => {
     console.log(`Bot Unificado online como ${client.user.tag}!`);
@@ -530,7 +822,7 @@ client.once('ready', async () => {
 });
 
 // ============================================================
-// --- EVENTOS ---
+// --- GESTÃO DE INTERAÇÕES ---
 // ============================================================
 client.on('interactionCreate', async interaction => {
     if (!interaction.guildId) return;
@@ -565,7 +857,7 @@ client.on('interactionCreate', async interaction => {
                 return await interaction.editReply(payload);
             } catch (err) {
                 console.error(err);
-                return await interaction.editReply({ content: '❌ Erro ao gerar a tabela.' });
+                return await interaction.editReply({ content: '❌ Erro ao gerar a imagem da tabela.' });
             }
         }
 
@@ -609,14 +901,16 @@ client.on('interactionCreate', async interaction => {
             const position = allPlayers.findIndex(p => p.userId === targetUser.id);
             const posText = position >= 0 ? position + 1 : allPlayers.length + 1;
 
-            const ligaNome = guildData.settings.ligaNome || 'Geral';
-            const ligaCorHex = COLOR_MAP[guildData.settings.ligaCor] || '#f1c40f';
+            const memberObj = await interaction.guild.members.fetch(targetUser.id).catch(() => targetUser);
 
             try {
-                const attachment = await gerarCardPerfil(targetUser, pData, posText, ligaNome, ligaCorHex);
+                const buffer = await generateAnaliseImage(memberObj, pData, posText, guildData.settings);
+                const attachment = new AttachmentBuilder(buffer, { name: `analise_${targetUser.username}.png` });
+
                 const embed = new EmbedBuilder()
-                    .setColor(ligaCorHex)
-                    .setImage('attachment://perfil.png');
+                    .setTitle(`Perfil - ${targetUser.username}`)
+                    .setColor(COLOR_MAP[guildData.settings.ligaCor] || 0xE74C3C)
+                    .setImage(`attachment://analise_${targetUser.username}.png`);
 
                 return await interaction.editReply({ embeds: [embed], files: [attachment] });
             } catch (err) {
@@ -677,7 +971,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
             const players = await getRankedCidadePlayers(cidadeGuildData.users, client);
             try {
-                const payload = await buildCidadeTabelaMessage(players, 0, cidadeGuildData.settings);
+                const payload = await buildCidadeTabelaMessage(players, 0, cidadeGuildData.settings, client);
                 return await interaction.editReply(payload);
             } catch (err) {
                 console.error(err);
@@ -720,17 +1014,25 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'moneyinfo') {
+            await interaction.deferReply();
             const targetUser = interaction.options.getUser('usuario') || interaction.user;
             const userObj = ensureCidadeUser(targetUser.id);
-            const embed = new EmbedBuilder()
-                .setTitle(`Informações Financeiras - ${targetUser.username}`)
-                .addFields(
-                    { name: '🪙 Carteira', value: `**${(userObj.wallet || 0).toLocaleString()}**`, inline: true },
-                    { name: '🏦 Banco', value: `**${(userObj.bank || 0).toLocaleString()}**`, inline: true },
-                    { name: '💰 Total', value: `**${((userObj.wallet || 0) + (userObj.bank || 0)).toLocaleString()}**`, inline: false }
-                )
-                .setColor(0xF1C40F);
-            return await interaction.reply({ embeds: [embed] });
+            const memberObj = await interaction.guild.members.fetch(targetUser.id).catch(() => targetUser);
+
+            try {
+                const buffer = await generateMoneyInfoImage(memberObj, userObj, cidadeGuildData.settings);
+                const attachment = new AttachmentBuilder(buffer, { name: `moneyinfo_${targetUser.username}.png` });
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`Informações Financeiras - ${targetUser.username}`)
+                    .setColor(COLOR_MAP[cidadeGuildData.settings.tabelaCor] || 0xF1C40F)
+                    .setImage(`attachment://moneyinfo_${targetUser.username}.png`);
+
+                return await interaction.editReply({ embeds: [embed], files: [attachment] });
+            } catch (err) {
+                console.error(err);
+                return await interaction.editReply({ content: '❌ Erro ao gerar imagem financeira.' });
+            }
         }
 
         if (commandName === 'dep') {
@@ -792,9 +1094,45 @@ client.on('interactionCreate', async interaction => {
             const pageChange = interaction.customId.startsWith('cidade_next_') ? 1 : -1;
             const currentPage = parseInt(interaction.customId.split('_').pop(), 10);
             const players = await getRankedCidadePlayers(cidadeGuildData.users, client);
-            const payload = await buildCidadeTabelaMessage(players, currentPage + pageChange, cidadeGuildData.settings);
+            const payload = await buildCidadeTabelaMessage(players, currentPage + pageChange, cidadeGuildData.settings, client);
             return await interaction.editReply(payload);
         }
+
+        // --- PAINEL CIDADE BOTÕES ---
+        if (interaction.customId.startsWith('cidade_')) {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+                return await interaction.reply({ content: 'Sem permissão!', ephemeral: true });
+            }
+            if (interaction.customId === 'cidade_mudar_titulo') {
+                const modal = new ModalBuilder().setCustomId('modal_cidade_titulo').setTitle('Alterar Título da Cidade');
+                const input = new TextInputBuilder().setCustomId('input_novo_titulo').setLabel('Novo Título').setStyle(TextInputStyle.Short).setRequired(true);
+                modal.addComponents(new ActionRowBuilder().addComponents(input));
+                return await interaction.showModal(modal);
+            }
+            if (interaction.customId === 'cidade_mudar_cor') {
+                const select = new StringSelectMenuBuilder().setCustomId('select_cidade_cor').setPlaceholder('Selecione a cor...').addOptions(
+                    Object.keys(COLOR_MAP).map(c => ({ label: c.toUpperCase(), value: c }))
+                );
+                return await interaction.reply({ content: 'Escolha a cor:', components: [new ActionRowBuilder().addComponents(select)], ephemeral: true });
+            }
+            if (interaction.customId === 'cidade_resetar') {
+                cidadeGuildData.users = {};
+                saveCidadeDB(cidadeDb);
+                return await interaction.reply({ content: '🔄 Cidade resetada!', ephemeral: true });
+            }
+        }
+    }
+
+    if (interaction.isStringSelectMenu() && interaction.customId === 'select_cidade_cor') {
+        cidadeGuildData.settings.tabelaCor = interaction.values[0];
+        saveCidadeDB(cidadeDb);
+        return await interaction.update({ content: `✅ Cor alterada para ${interaction.values[0]}!`, components: [] });
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === 'modal_cidade_titulo') {
+        cidadeGuildData.settings.tabelaNome = interaction.fields.getTextInputValue('input_novo_titulo');
+        saveCidadeDB(cidadeDb);
+        return await interaction.reply({ content: '✅ Título da cidade atualizado!', ephemeral: true });
     }
 });
 
