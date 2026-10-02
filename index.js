@@ -6,7 +6,7 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
-const { createCanvas, loadImage } = require('@napi-rs/canvas');
+const { createCanvas } = require('@napi-rs/canvas');
 
 // --- Servidor Web para manter ativo ---
 const app = express();
@@ -248,16 +248,6 @@ function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
     if (stroke) ctx.stroke();
 }
 
-function drawRoundImage(ctx, img, x, y, size) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(img, x, y, size, size);
-    ctx.restore();
-}
-
 // ============================================================
 // --- GERADOR DE IMAGEM: MONEYINFO ---
 // ============================================================
@@ -284,25 +274,19 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     ctx.font = '14px sans-serif';
     ctx.fillText('Extrato de contas, carteira e património da cidade', 180, 95);
 
-    let avatarImg = null;
-    try {
-        const avatarURL = member.displayAvatarURL ? member.displayAvatarURL({ extension: 'png', size: 256 }) : `https://cdn.discordapp.com/embed/avatars/0.png`;
-        avatarImg = await loadImage(avatarURL);
-    } catch {}
-
+    // Avatar seguro por ícone
     ctx.fillStyle = selectedColor;
     ctx.beginPath();
     ctx.arc(100, 80, 52, 0, Math.PI * 2);
     ctx.fill();
-
-    if (avatarImg) {
-        drawRoundImage(ctx, avatarImg, 50, 30, 100);
-    } else {
-        ctx.fillStyle = '#2c2d30';
-        ctx.beginPath();
-        ctx.arc(100, 80, 48, 0, Math.PI * 2);
-        ctx.fill();
-    }
+    ctx.fillStyle = '#2c2d30';
+    ctx.beginPath();
+    ctx.arc(100, 80, 48, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🪙', 100, 90);
 
     ctx.textAlign = 'right';
     ctx.fillStyle = '#ffffff';
@@ -423,20 +407,19 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.font = 'bold 14px sans-serif';
     ctx.fillText((dbSettings.ligaNome || '').toUpperCase(), 620, 68);
 
-    let avatarImg = null;
-    try {
-        const avatarURL = member.displayAvatarURL ? member.displayAvatarURL({ extension: 'png', size: 256 }) : `https://cdn.discordapp.com/embed/avatars/0.png`;
-        avatarImg = await loadImage(avatarURL);
-    } catch {}
-
-    if (avatarImg) {
-        drawRoundImage(ctx, avatarImg, 75, 125, 150);
-    } else {
-        ctx.fillStyle = '#2c2d30';
-        ctx.beginPath();
-        ctx.arc(150, 200, 75, 0, Math.PI * 2);
-        ctx.fill();
-    }
+    // Avatar seguro
+    ctx.fillStyle = selectedColor;
+    ctx.beginPath();
+    ctx.arc(150, 200, 78, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2c2d30';
+    ctx.beginPath();
+    ctx.arc(150, 200, 72, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚔️', 150, 212);
 
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
@@ -572,22 +555,19 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
         ctx.textAlign = 'left';
         ctx.fillText(`#${rank}`, 75, startY + 36);
 
-        let avatarImg = null;
-        try {
-            if (p.avatarURL) avatarImg = await loadImage(p.avatarURL);
-        } catch {}
-
-        if (avatarImg) {
-            drawRoundImage(ctx, avatarImg, 130, startY + 10, 40);
-        } else {
-            ctx.fillStyle = '#333';
-            ctx.beginPath();
-            ctx.arc(150, startY + 30, 20, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        // Ícone seguro
+        ctx.fillStyle = selectedColor;
+        ctx.beginPath();
+        ctx.arc(150, startY + 30, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('👤', 150, startY + 34);
 
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'left';
         ctx.fillText((p.username || 'Jogador').slice(0, 18), 185, startY + 36);
 
         const total = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
@@ -621,8 +601,7 @@ async function getRankedPlayers(guildPlayersObj, clientInstance) {
             wins: p.wins || 0,
             losses: p.losses || 0,
             draws: p.draws || 0,
-            username: u ? u.username : 'Jogador',
-            avatarURL: u ? u.displayAvatarURL({ extension: 'png', size: 128 }) : null
+            username: u ? u.username : 'Jogador'
         });
     }
     return enriched;
@@ -707,21 +686,17 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
         ctx.textAlign = 'left';
         ctx.fillText(`#${rank}`, 65, startY + 34);
 
-        let avatarImg = null;
-        try {
-            if (p.avatarURL) avatarImg = await loadImage(p.avatarURL);
-        } catch {}
+        // Ícone seguro
+        ctx.fillStyle = selectedColor;
+        ctx.beginPath();
+        ctx.arc(135, startY + 27, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#121318';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`👤`, 135, startY + 31);
 
-        if (avatarImg) {
-            drawRoundImage(ctx, avatarImg, 115, startY + 7, 40);
-        } else {
-            ctx.fillStyle = '#333';
-            ctx.beginPath();
-            ctx.arc(135, startY + 27, 20, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // CORREÇÃO: Força o texto do nome do cidadão a ser sempre branco puro (#ffffff)
+        // Nome do cidadão em branco puro
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 16px sans-serif';
         ctx.textAlign = 'left';
@@ -750,8 +725,7 @@ async function getRankedCidadePlayers(guildUsersObj, clientInstance) {
             userId: p.userId,
             bank: p.bank,
             wallet: p.wallet || 0,
-            username: u ? u.username : 'Cidadão',
-            avatarURL: u ? u.displayAvatarURL({ extension: 'png', size: 128 }) : null
+            username: u ? u.username : 'Cidadão'
         });
     }
     return enriched;
@@ -924,7 +898,7 @@ client.on('interactionCreate', async interaction => {
 
             const mapSelect = new StringSelectMenuBuilder()
                 .setCustomId(`escolher_mapa_${interaction.user.id}_${adversario ? adversario.id : 'aleatorio'}`)
-                .setPlaceholder('🗺️ Selecione o mapa do confronto...')
+                .setPlaceholder('🗺️️ Selecione o mapa do confronto...')
                 .addOptions([
                     { label: 'Homestead', value: 'Homestead' },
                     { label: 'Airport', value: 'Airport' },
@@ -2122,7 +2096,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.update({ content: '✅ Desafio publicado com sucesso no canal!', embeds: [], components: [] });
     }
 
-    if (interaction.isButton() && interaction.customId.startsWith('tabela_prev_') || interaction.customId.startsWith('tabela_next_')) {
+    if (interaction.isButton() && (interaction.customId.startsWith('tabela_prev_') || interaction.customId.startsWith('tabela_next_'))) {
         await interaction.deferUpdate();
         const pageChange = interaction.customId.startsWith('tabela_next_') ? 1 : -1;
         const currentPage = parseInt(interaction.customId.split('_').pop(), 10);
