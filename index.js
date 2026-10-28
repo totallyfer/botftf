@@ -8,7 +8,7 @@ const fs = require('fs');
 const express = require('express');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
-// --- Servidor Web para manter ativo (Railway) ---
+// --- Servidor Web para manter ativo (Render / Replit) ---
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot Unificado (1v1 + Cidade + Tickets) a funcionar perfeitamente!'));
@@ -24,7 +24,7 @@ const client = new Client({
 });
 
 const TOKEN = process.env.DISCORD_TOKEN;
-const CLIENT_ID = "1551768205444259862";
+const CLIENT_ID = "1564969239742517328";
 
 // --- Mapeamento de Cores ---
 const COLOR_MAP = {
@@ -72,6 +72,19 @@ function getGuildData(db, guildId) {
             players: {}
         };
     }
+    if (!db.guilds[guildId].settings) {
+        db.guilds[guildId].settings = { 
+            ligaNome: '', 
+            ligaCor: 'dourado',
+            cargoProcurando: null,
+            cargoTop1: null,
+            cargoTop2: null,
+            cargoTop3: null
+        };
+    }
+    if (!db.guilds[guildId].players) {
+        db.guilds[guildId].players = {};
+    }
     return db.guilds[guildId];
 }
 
@@ -104,6 +117,12 @@ function getCidadeGuildData(db, guildId) {
             users: {} 
         };
     }
+    if (!db.guilds[guildId].settings) {
+        db.guilds[guildId].settings = { tabelaNome: 'CIDADE - RANKING', tabelaCor: 'dourado' };
+    }
+    if (!db.guilds[guildId].users) {
+        db.guilds[guildId].users = {};
+    }
     return db.guilds[guildId];
 }
 
@@ -124,7 +143,7 @@ function loadTicketDB() {
 function saveTicketDB(data) {
     const tmp = TICKET_DB_FILE + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-    fs.renameSync(tmp, CIDADE_DB_FILE); // Mantido o padrão seguro
+    fs.renameSync(tmp, TICKET_DB_FILE);
 }
 function getTicketGuildData(db, guildId) {
     if (!db.guilds[guildId]) {
@@ -143,9 +162,26 @@ function getTicketGuildData(db, guildId) {
             ticketsAtivos: {}
         };
     }
+    if (!db.guilds[guildId].config) {
+        db.guilds[guildId].config = {
+            titulo: 'CENTRAL DE SUPORTE - TICKETS',
+            descricao: 'Selecione abaixo o motivo do seu atendimento para abrir um ticket com a nossa equipe.',
+            cargoStaff: null,
+            canalEnvio: null,
+            bannerUrl: null,
+            opcoes: [
+                { label: 'Suporte Geral', value: 'suporte_geral', description: 'Dúvidas gerais e ajuda', emoji: '💬' },
+                { label: 'Sorteios & Prêmios', value: 'sorteios', description: 'Assuntos relacionados a sorteios', emoji: '🎁' }
+            ]
+        };
+    }
+    if (!db.guilds[guildId].ticketsAtivos) {
+        db.guilds[guildId].ticketsAtivos = {};
+    }
     return db.guilds[guildId];
 }
 
+// Cooldowns em memória (Isolados por Servidor usando chave "guildId_userId")
 const cidadeCooldowns = {
     work: new Map(),
     job: new Map(),
@@ -154,7 +190,9 @@ const cidadeCooldowns = {
     rob: new Map()
 };
 
+// ============================================================
 // --- FUNÇÃO PARA ATUALIZAR CARGOS DO PÓDIO (1V1) ---
+// ============================================================
 async function atualizarCargosPodio(guild, guildData) {
     if (!guild) return;
     const settings = guildData.settings;
@@ -192,7 +230,9 @@ async function atualizarCargosPodio(guild, guildData) {
     }
 }
 
+// ============================================================
 // --- FUNÇÕES AUXILIARES DE CANVAS ---
+// ============================================================
 function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -219,7 +259,9 @@ function drawRoundImage(ctx, img, x, y, size) {
     ctx.restore();
 }
 
-// --- GERADOR DE IMAGEM: MONEYINFO ---
+// ============================================================
+// --- GERADOR DE IMAGEM: MONEYINFO DETALHADO COM ÍCONES ---
+// ============================================================
 async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     const canvas = createCanvas(900, 480);
     const ctx = canvas.getContext('2d');
@@ -227,8 +269,10 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
 
     ctx.fillStyle = selectedColor;
     ctx.fillRect(0, 0, canvas.width, 160);
+
     ctx.fillStyle = '#121318';
     ctx.fillRect(0, 150, canvas.width, canvas.height - 150);
+
     ctx.fillStyle = selectedColor;
     ctx.fillRect(0, 146, canvas.width, 4);
 
@@ -275,7 +319,11 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     const bank = userObj.bank || 0;
     const total = wallet + bank;
 
-    const cardY = 195, cardW = 245, cardH = 230, cardSpacing = 30, startX = 50;
+    const cardY = 195;
+    const cardW = 245;
+    const cardH = 230;
+    const cardSpacing = 30;
+    const startX = 50;
 
     // Carteira
     ctx.fillStyle = '#1b1d24';
@@ -286,13 +334,20 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
 
     ctx.fillStyle = '#2ecc71';
     roundRect(ctx, startX + 25, cardY + 25, 45, 45, 10, true, false);
+    ctx.fillStyle = '#1b1d24';
+    ctx.fillRect(startX + 35, cardY + 40, 25, 22);
+    ctx.fillStyle = '#2ecc71';
+    ctx.fillRect(startX + 45, cardY + 48, 8, 6);
+
     ctx.fillStyle = '#a0a2ab';
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('DINHEIRO EM MÃOS', startX + 25, cardY + 100);
+
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px sans-serif';
     ctx.fillText('CARTEIRA', startX + 25, cardY + 118);
+
     ctx.fillStyle = '#2ecc71';
     ctx.font = 'bold 22px sans-serif';
     ctx.fillText(`🪙 ${wallet.toLocaleString()}`, startX + 25, cardY + 175);
@@ -307,12 +362,20 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
 
     ctx.fillStyle = '#3498db';
     roundRect(ctx, x2 + 25, cardY + 25, 45, 45, 10, true, false);
+    ctx.fillStyle = '#1b1d24';
+    ctx.fillRect(x2 + 35, cardY + 40, 4, 18);
+    ctx.fillRect(x2 + 45, cardY + 40, 4, 18);
+    ctx.fillRect(x2 + 55, cardY + 40, 4, 18);
+
     ctx.fillStyle = '#a0a2ab';
     ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
     ctx.fillText('PROTEGIDO NO COFRE', x2 + 25, cardY + 100);
+
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px sans-serif';
     ctx.fillText('BANCO CENTRAL', x2 + 25, cardY + 118);
+
     ctx.fillStyle = '#3498db';
     ctx.font = 'bold 22px sans-serif';
     ctx.fillText(`🏦 ${bank.toLocaleString()}`, x2 + 25, cardY + 175);
@@ -327,12 +390,20 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
 
     ctx.fillStyle = selectedColor;
     roundRect(ctx, x3 + 25, cardY + 25, 45, 45, 10, true, false);
+    ctx.fillStyle = '#1b1d24';
+    ctx.fillRect(x3 + 34, cardY + 52, 6, 12);
+    ctx.fillRect(x3 + 44, cardY + 45, 6, 19);
+    ctx.fillRect(x3 + 54, cardY + 37, 6, 27);
+
     ctx.fillStyle = '#a0a2ab';
     ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
     ctx.fillText('SOMA GERAL', x3 + 25, cardY + 100);
+
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px sans-serif';
     ctx.fillText('PATRIMÓNIO TOTAL', x3 + 25, cardY + 118);
+
     ctx.fillStyle = '#f1c40f';
     ctx.font = 'bold 22px sans-serif';
     ctx.fillText(`💰 ${total.toLocaleString()}`, x3 + 25, cardY + 175);
@@ -340,7 +411,9 @@ async function generateMoneyInfoImage(member, userObj, dbSettings = {}) {
     return canvas.toBuffer('image/png');
 }
 
-// --- GERADOR DE IMAGEM: ANÁLISE 1V1 ---
+// ============================================================
+// --- GERADOR DE IMAGEM: ANÁLISE DE PERFIL (1V1) ---
+// ============================================================
 async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}) {
     const canvas = createCanvas(800, 450);
     const ctx = canvas.getContext('2d');
@@ -348,6 +421,7 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
 
     ctx.fillStyle = selectedColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
     ctx.fillStyle = 'rgba(15, 15, 18, 0.82)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -398,11 +472,14 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
 
     ctx.fillStyle = '#2c2d30';
     roundRect(ctx, 270, 275, 490, 8, 4, true, false);
+    
     ctx.fillStyle = selectedColor;
     const barraWidth = Math.max(10, (490 * parseFloat(winRate)) / 100);
     roundRect(ctx, 270, 275, barraWidth, 8, 4, true, false);
 
-    const boxWidth = 153, boxHeight = 100, boxY = 310;
+    const boxWidth = 153;
+    const boxHeight = 100;
+    const boxY = 310;
 
     // Vitórias
     ctx.fillStyle = 'rgba(30, 31, 34, 0.9)';
@@ -424,6 +501,7 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.fillRect(438, boxY, 4, boxHeight);
     ctx.fillStyle = '#aaaaaa';
     ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
     ctx.fillText('EMPATES', 458, boxY + 30);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 32px sans-serif';
@@ -436,6 +514,7 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     ctx.fillRect(606, boxY, 4, boxHeight);
     ctx.fillStyle = '#aaaaaa';
     ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
     ctx.fillText('DERROTAS', 626, boxY + 30);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 32px sans-serif';
@@ -444,12 +523,15 @@ async function generateAnaliseImage(member, stats, rankPosition, dbSettings = {}
     return canvas.toBuffer('image/png');
 }
 
-// --- GERADOR DE IMAGEM: TABELA 1V1 ---
+// ============================================================
+// --- GERADOR DE IMAGEM: TABELA DE RANKING (1V1) ---
+// ============================================================
+const ROW_H = 75, W = 800, HEADER_H = 130;
+
 async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
     const PER_PAGE = 4;
     const startIdx = page * PER_PAGE;
     const current = playersArray.slice(startIdx, startIdx + PER_PAGE);
-    const ROW_H = 75, W = 800, HEADER_H = 130;
     const H = HEADER_H + Math.max(current.length, 1) * ROW_H + 60;
 
     const canvas = createCanvas(W, H);
@@ -458,6 +540,7 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
 
     ctx.fillStyle = selectedColor;
     ctx.fillRect(0, 0, W, H);
+
     ctx.fillStyle = 'rgba(15, 15, 18, 0.85)';
     ctx.fillRect(0, 0, W, H);
 
@@ -503,7 +586,9 @@ async function generateRankingImage(playersArray, page = 0, dbSettings = {}) {
         ctx.fillText(`#${rank}`, 75, startY + 36);
 
         let avatarImg = null;
-        try { if (p.avatarURL) avatarImg = await loadImage(p.avatarURL); } catch {}
+        try {
+            if (p.avatarURL) avatarImg = await loadImage(p.avatarURL);
+        } catch {}
 
         if (avatarImg) {
             drawRoundImage(ctx, avatarImg, 130, startY + 10, 40);
@@ -578,13 +663,17 @@ async function buildTabelaMessage(players, page, dbSettings = {}) {
     return { embeds: [embed], files: [attachment], components: [row] };
 }
 
-// --- GERADOR DE IMAGEM: TABELA DA CIDADE (1-10 com botões) ---
+// ============================================================
+// --- GERADOR DE IMAGEM: TABELA DA CIDADE (1-10) ---
+// ============================================================
 async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {}) {
     const PER_PAGE = 10;
     const startIdx = page * PER_PAGE;
     const current = playersArray.slice(startIdx, startIdx + PER_PAGE);
     
-    const ROW_H = 65, HEADER_H = 120, W = 800;
+    const ROW_H = 65;
+    const HEADER_H = 120;
+    const W = 800;
     const H = HEADER_H + Math.max(current.length, 1) * ROW_H + 50;
 
     const canvas = createCanvas(W, H);
@@ -632,7 +721,9 @@ async function generateCidadeRankingImage(playersArray, page = 0, dbSettings = {
         ctx.fillText(`#${rank}`, 65, startY + 34);
 
         let avatarImg = null;
-        try { if (p.avatarURL) avatarImg = await loadImage(p.avatarURL); } catch {}
+        try {
+            if (p.avatarURL) avatarImg = await loadImage(p.avatarURL);
+        } catch {}
 
         if (avatarImg) {
             drawRoundImage(ctx, avatarImg, 115, startY + 7, 40);
@@ -677,7 +768,7 @@ async function getRankedCidadePlayers(guildUsersObj, clientInstance) {
     return enriched;
 }
 
-async function buildCidadeTabelaMessage(players, page, dbSettings) {
+async function buildCidadeTabelaMessage(players, page, dbSettings, clientInstance) {
     const PER_PAGE = 10;
     const buffer = await generateCidadeRankingImage(players, page, dbSettings);
     const attachment = new AttachmentBuilder(buffer, { name: `tabela_cidade_pagina_${page + 1}.png` });
@@ -708,16 +799,8 @@ client.once('ready', async () => {
     const commands = [
         new SlashCommandBuilder()
             .setName('tabela')
-            .setDescription('Mostra a tabela de classificação')
-            .addStringOption(option => 
-                option.setName('modo')
-                    .setDescription('Escolha o ranking')
-                    .setRequired(true)
-                    .addChoices(
-                        { name: '1v1', value: '1v1' },
-                        { name: 'cidade', value: 'cidade' }
-                    )
-            ),
+            .setDescription('Mostra a tabela de classificação 1v1 em imagem')
+            .addStringOption(option => option.setName('modo').setDescription('Modo').setRequired(true).addChoices({ name: '1v1', value: '1v1' })),
         new SlashCommandBuilder()
             .setName('desafiar')
             .setDescription('Cria um desafio 1v1 com seleção de mapa')
@@ -732,7 +815,6 @@ client.once('ready', async () => {
             .setName('painel')
             .setDescription('Painel de controlo administrativo (1v1, Cidade ou Ticket)')
             .addSubcommand(sub => sub.setName('cidade').setDescription('Abre o painel administrativo da cidade'))
-            .addSubcommand(sub => sub.setName('1v1').setDescription('Abre o painel administrativo 1v1'))
             .addSubcommand(sub => 
                 sub.setName('ticket')
                    .setDescription('Abre o painel administrativo de tickets')
@@ -744,6 +826,9 @@ client.once('ready', async () => {
             .setDescription('Reseta a tabela e dados de 1v1 (Apenas Admins)')
             .addStringOption(option => option.setName('modo').setDescription('Modo').setRequired(true).addChoices({ name: '1v1', value: '1v1' })),
 
+        new SlashCommandBuilder()
+            .setName('tabelacidade')
+            .setDescription('Mostra a tabela de classificação da cidade'),
         new SlashCommandBuilder()
             .setName('work')
             .setDescription('Trabalha para ganhar moedas (Flee the Facility)'),
@@ -811,29 +896,16 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'tabela') {
             await interaction.deferReply();
-            const modo = interaction.options.getString('modo');
-
-            if (modo === '1v1') {
-                const players = await getRankedPlayers(guildData.players, client);
-                if (players.length === 0) {
-                    return await interaction.editReply({ content: '⚠ Ainda não existem jogadores com pontuação positiva na tabela 1v1 deste servidor!' });
-                }
-                try {
-                    const payload = await buildTabelaMessage(players, 0, guildData.settings);
-                    return await interaction.editReply(payload);
-                } catch (err) {
-                    console.error('Erro ao gerar imagem da tabela 1v1:', err);
-                    return await interaction.editReply({ content: '❌ Erro ao gerar a imagem da tabela.' });
-                }
-            } else if (modo === 'cidade') {
-                const players = await getRankedCidadePlayers(cidadeGuildData.users, client);
-                try {
-                    const payload = await buildCidadeTabelaMessage(players, 0, cidadeGuildData.settings);
-                    return await interaction.editReply(payload);
-                } catch (err) {
-                    console.error('Erro ao gerar tabela da cidade:', err);
-                    return await interaction.editReply({ content: '❌ Erro ao gerar a tabela da cidade.' });
-                }
+            const players = await getRankedPlayers(guildData.players, client);
+            if (players.length === 0) {
+                return await interaction.editReply({ content: '⚠️️ Ainda não existem jogadores com pontuação positiva na tabela 1v1 deste servidor!' });
+            }
+            try {
+                const payload = await buildTabelaMessage(players, 0, guildData.settings);
+                return await interaction.editReply(payload);
+            } catch (err) {
+                console.error('Erro ao gerar imagem da tabela:', err);
+                return await interaction.editReply({ content: '❌ Erro ao gerar a imagem da tabela.' });
             }
         }
 
@@ -924,13 +996,13 @@ client.on('interactionCreate', async interaction => {
                     .setTimestamp();
 
                 const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('cidade_mudar_titulo').setLabel('Mudar Título').setStyle(ButtonStyle.Primary).setEmoji('✏️️'),
+                    new ButtonBuilder().setCustomId('cidade_mudar_titulo').setLabel('Mudar Título').setStyle(ButtonStyle.Primary).setEmoji('✏️'),
                     new ButtonBuilder().setCustomId('cidade_mudar_cor').setLabel('Mudar Cor').setStyle(ButtonStyle.Secondary).setEmoji('🎨'),
                     new ButtonBuilder().setCustomId('cidade_add_remover').setLabel('Adicionar/Remover Moedas').setStyle(ButtonStyle.Success).setEmoji('🪙'),
                     new ButtonBuilder().setCustomId('cidade_resetar').setLabel('Resetar Cidade').setStyle(ButtonStyle.Danger).setEmoji('🚨')
                 );
 
-                return await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+                return await interaction.reply({ embeds: [embed], components: [row] });
             }
 
             if (sub === 'ticket') {
@@ -962,7 +1034,9 @@ client.on('interactionCreate', async interaction => {
                     .setColor(0x3498DB)
                     .setTimestamp();
 
-                if (cfg.bannerUrl) embed.setImage(cfg.bannerUrl);
+                if (cfg.bannerUrl) {
+                    embed.setImage(cfg.bannerUrl);
+                }
 
                 const row1 = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('ticket_cfg_texto').setLabel('Editar Textos').setStyle(ButtonStyle.Primary).setEmoji('✏️'),
@@ -976,37 +1050,35 @@ client.on('interactionCreate', async interaction => {
                     new ButtonBuilder().setCustomId('ticket_enviar_painel').setLabel('Enviar Painel Embed').setStyle(ButtonStyle.Success).setEmoji('🚀')
                 );
 
-                return await interaction.reply({ embeds: [embed], components: [row1, row2], ephemeral: true });
+                return await interaction.reply({ embeds: [embed], components: [row1, row2] });
             }
 
-            if (sub === '1v1') {
-                if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                    return await interaction.reply({ content: '❌ Apenas membros com permissão de **Moderação** ou **Administrador** podem aceder a este painel!', ephemeral: true });
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle('<:moderao:1545806399169101854> Painel de Controle Administrativo - 1v1')
-                    .setDescription(
-                        `Gerencie as configurações da liga neste servidor.\n\n` +
-                        `<:trofeu:1554216098319044621> **Liga Atual:** \`${guildData.settings.ligaNome || 'Não configurado'}\`\n` +
-                        `<:custo:1554216373285163100> **Cor Temática:** \`${guildData.settings.ligaCor}\`\n` +
-                        `<:engrenagem:1554223036948021249> **Cargo de Ping (Desafiar):** ${guildData.settings.cargoProcurando ? `<@&${guildData.settings.cargoProcurando}>` : '`Nenhum`'}\n` +
-                        `<:tro:1554226308224131184> **Cargo Top 1:** ${guildData.settings.cargoTop1 ? `<@&${guildData.settings.cargoTop1}>` : '`Nenhum`'}\n` +
-                        `<:tro2:1554226635908321293> **Cargo Top 2:** ${guildData.settings.cargoTop2 ? `<@&${guildData.settings.cargoTop2}>` : '`Nenhum`'}\n` +
-                        `<:tro3:1554226883183247371> **Cargo Top 3:** ${guildData.settings.cargoTop3 ? `<@&${guildData.settings.cargoTop3}>` : '`Nenhum`'}`
-                    )
-                    .setColor(COLOR_MAP[guildData.settings.ligaCor] || 0xE74C3C)
-                    .setTimestamp();
-
-                const rowButtons1 = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('painel_mudar_titulo').setLabel('Mudar Título').setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder().setCustomId('painel_mudar_cor').setLabel('Mudar Cor').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId('painel_config_cargos').setLabel('Configurar Cargos').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('painel_nova_liga').setLabel('Nova Liga (Reset)').setStyle(ButtonStyle.Danger)
-                );
-
-                return await interaction.reply({ embeds: [embed], components: [rowButtons1], ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return await interaction.reply({ content: '❌ Apenas membros com permissão de **Moderação** ou **Administrador** podem aceder a este painel!', ephemeral: true });
             }
+
+            const embed = new EmbedBuilder()
+                .setTitle('<:moderao:1545806399169101854> Painel de Controle Administrativo - 1v1')
+                .setDescription(
+                    `Gerencie as configurações da liga neste servidor.\n\n` +
+                    `<:trofeu:1554216098319044621> **Liga Atual:** \`${guildData.settings.ligaNome || 'Não configurado'}\`\n` +
+                    `<:custo:1554216373285163100> **Cor Temática:** \`${guildData.settings.ligaCor}\`\n` +
+                    `<:engrenagem:1554223036948021249> **Cargo de Ping (Desafiar):** ${guildData.settings.cargoProcurando ? `<@&${guildData.settings.cargoProcurando}>` : '`Nenhum`'}\n` +
+                    `<:tro:1554226308224131184> **Cargo Top 1:** ${guildData.settings.cargoTop1 ? `<@&${guildData.settings.cargoTop1}>` : '`Nenhum`'}\n` +
+                    `<:tro2:1554226635908321293> **Cargo Top 2:** ${guildData.settings.cargoTop2 ? `<@&${guildData.settings.cargoTop2}>` : '`Nenhum`'}\n` +
+                    `<:tro3:1554226883183247371> **Cargo Top 3:** ${guildData.settings.cargoTop3 ? `<@&${guildData.settings.cargoTop3}>` : '`Nenhum`'}`
+                )
+                .setColor(COLOR_MAP[guildData.settings.ligaCor] || 0xE74C3C)
+                .setTimestamp();
+
+            const rowButtons1 = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('painel_mudar_titulo').setLabel('Mudar Título').setStyle(ButtonStyle.Primary).setEmoji('1554222927476691064'),
+                new ButtonBuilder().setCustomId('painel_mudar_cor').setLabel('Mudar Cor').setStyle(ButtonStyle.Secondary).setEmoji('1554216373285163100'),
+                new ButtonBuilder().setCustomId('painel_config_cargos').setLabel('Configurar Cargos').setStyle(ButtonStyle.Success).setEmoji('1554223036948021249'),
+                new ButtonBuilder().setCustomId('painel_nova_liga').setLabel('Nova Liga (Reset)').setStyle(ButtonStyle.Danger).setEmoji('1554222826951540817')
+            );
+
+            return await interaction.reply({ embeds: [embed], components: [rowButtons1] });
         }
 
         if (commandName === 'reset') {
@@ -1019,6 +1091,18 @@ client.on('interactionCreate', async interaction => {
         }
 
         // --- COMANDOS CIDADE / ECONOMIA ---
+        if (commandName === 'tabelacidade') {
+            await interaction.deferReply();
+            const players = await getRankedCidadePlayers(cidadeGuildData.users, client);
+            try {
+                const payload = await buildCidadeTabelaMessage(players, 0, cidadeGuildData.settings, client);
+                return await interaction.editReply(payload);
+            } catch (err) {
+                console.error('Erro ao gerar tabela da cidade:', err);
+                return await interaction.editReply({ content: '❌ Erro ao gerar a tabela da cidade.' });
+            }
+        }
+
         if (commandName === 'work') {
             const userId = interaction.user.id;
             const guildId = interaction.guildId;
@@ -1046,13 +1130,19 @@ client.on('interactionCreate', async interaction => {
                 `matou um top br e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
                 `hackeou os computadores de Facility e recolheu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
                 `escapou da Besta no mapa Airport e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
-                `resgatou um companheiro na cadeira em Homestead e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`
+                `resgatou um companheiro na cadeira em Homestead e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `ganhou um 1v1 épico na prisão abandonada e obteve <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `encontrou uma saída secreta no mapa Arcade e recolheu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `conseguiu atordoar a Besta com o martelo e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `consertou todos os computadores sozinho em Abandoned Facility e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `venceu a rodada como sobrevivente mestre e obteve <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `completou a missão noturna no mapa Facility e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`
             ];
 
             const randomMsg = workMessages[Math.floor(Math.random() * workMessages.length)];
             const embed = new EmbedBuilder()
                 .setTitle('<:wallet:1554579680219373611> Trabalho - Flee the Facility')
-                .setDescription(`<:profile:1554579406088044608> <@${userId}> ${randomMsg}!`)
+                .setDescription(`<:profile:1554579406088044608> <@${userId}>${randomMsg}! (Dinheiro foi para a carteira <:moeda:1554577755121917994>)`)
                 .setColor(0x2ECC71);
 
             return await interaction.reply({ embeds: [embed] });
@@ -1081,9 +1171,23 @@ client.on('interactionCreate', async interaction => {
             userObj.wallet += coins;
             saveCidadeDB(cidadeDb);
 
+            const jobMessages = [
+                `trabalhou atendendo pacientes no hospital e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `entregou encomendas urgentes pela cidade e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou como segurança noturno no banco central e recebeu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `consertou encanamentos na prefeitura e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou como chef num restaurante famoso e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `deu aulas particulares de programação e recebeu <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou na oficina mecânica consertando carros e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `organizou o estoque do supermercado local e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `trabalhou como motorista de aplicativo e acumulou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`,
+                `pintou murais artísticos nas ruas da cidade e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas`
+            ];
+
+            const randomMsg = jobMessages[Math.floor(Math.random() * jobMessages.length)];
             const embed = new EmbedBuilder()
                 .setTitle('<:slaa:1554584672741359616> Emprego Diário')
-                .setDescription(`<:profile:1554579406088044608> <@${userId}> trabalhou e ganhou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas!`)
+                .setDescription(`<:profile:1554579406088044608> <@${userId}>${randomMsg}! (Dinheiro foi para a carteira <:moeda:1554577755121917994>)`)
                 .setColor(0x3498DB);
 
             return await interaction.reply({ embeds: [embed] });
@@ -1116,7 +1220,7 @@ client.on('interactionCreate', async interaction => {
                 saveCidadeDB(cidadeDb);
                 const embed = new EmbedBuilder()
                     .setTitle('🎰 Arriscar a Sorte')
-                    .setDescription(`🎉 Deu bom! <@${userId}> arriscou nos becos e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas!`)
+                    .setDescription(`🎉 Deu bom! <@${userId}> arriscou nos becos escuros e faturou <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas para a carteira!`)
                     .setColor(0x2ECC71);
                 return await interaction.reply({ embeds: [embed] });
             } else {
@@ -1125,7 +1229,7 @@ client.on('interactionCreate', async interaction => {
                 saveCidadeDB(cidadeDb);
                 const embed = new EmbedBuilder()
                     .setTitle('🎰 Arriscar a Sorte')
-                    .setDescription(`💸 Deu ruim! <@${userId}> perdeu <:moeda:1554577755121917994> **${loss.toLocaleString()}** moedas!`)
+                    .setDescription(`💸 Deu ruim! <@${userId}> foi pego pela polícia ou caiu numa armadilha e perdeu <:moeda:1554577755121917994> **${loss.toLocaleString()}** moedas da carteira!`)
                     .setColor(0xE74C3C);
                 return await interaction.reply({ embeds: [embed] });
             }
@@ -1149,14 +1253,16 @@ client.on('interactionCreate', async interaction => {
             }
 
             const coins = Math.floor(Math.random() * (25000 - 5000 + 1)) + 5000;
+
             const embed = new EmbedBuilder()
                 .setTitle('🎁 Recompensa Diária')
-                .setDescription(`Clica no botão abaixo para resgatar o teu prêmio diário de <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas!`)
+                .setDescription(`Clica no botão abaixo para resgatar o teu prêmio diário aleatório de <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas!`)
                 .setColor(0xF1C40F);
 
             const btnResgatar = new ButtonBuilder()
                 .setCustomId(`resgatar_daily_${userId}_${coins}`)
                 .setLabel('Resgatar Daily')
+                .setEmoji('1554580179488079884')
                 .setStyle(ButtonStyle.Success);
 
             const row = new ActionRowBuilder().addComponents(btnResgatar);
@@ -1212,7 +1318,7 @@ client.on('interactionCreate', async interaction => {
 
             const embed = new EmbedBuilder()
                 .setTitle('<a:verificado:1554216178111610932> Depósito Realizado')
-                .setDescription(`Depositaste com sucesso <:moeda:1554577755121917994> **${amountToDep.toLocaleString()}** moedas no banco!`)
+                .setDescription(`Depositaste com sucesso <:moeda:1554577755121917994> **${amountToDep.toLocaleString()}** moedas no banco! Agora estão seguras contra roubos.`)
                 .setColor(0x2ECC71);
 
             return await interaction.reply({ embeds: [embed] });
@@ -1233,10 +1339,11 @@ client.on('interactionCreate', async interaction => {
             const targetObj = ensureCidadeUser(targetUser.id);
 
             if (targetObj.wallet <= 0) {
-                return await interaction.reply({ content: `❌ **${targetUser.username}** não tem dinheiro na carteira!`, ephemeral: true });
+                return await interaction.reply({ content: `❌ **${targetUser.username}** não tem dinheiro na carteira para ser roubado!`, ephemeral: true });
             }
 
             const success = Math.random() < 0.30;
+
             if (success) {
                 const stolenAmount = Math.floor(targetObj.wallet * (Math.random() * 0.30 + 0.10));
                 targetObj.wallet -= stolenAmount;
@@ -1245,13 +1352,28 @@ client.on('interactionCreate', async interaction => {
 
                 const embed = new EmbedBuilder()
                     .setTitle('🥷 Assalto Bem-Sucedido!')
-                    .setDescription(`Roubaste <:moeda:1554577755121917994> **${stolenAmount.toLocaleString()}** moedas de **${targetUser.username}**!`)
+                    .setDescription(`Fizeste uma operação limpa! Roubaste <:moeda:1554577755121917994> **${stolenAmount.toLocaleString()}** moedas da carteira de **${targetUser.username}**!`)
                     .setColor(0x2ECC71);
                 return await interaction.reply({ embeds: [embed] });
             } else {
+                const totalRobberMoney = robberObj.wallet + robberObj.bank;
+                const penalty = Math.floor(totalRobberMoney * 0.30);
+
+                if (penalty > 0) {
+                    if (robberObj.wallet >= penalty) {
+                        robberObj.wallet -= penalty;
+                    } else {
+                        const remainder = penalty - robberObj.wallet;
+                        robberObj.wallet = 0;
+                        robberObj.bank = Math.max(0, robberObj.bank - remainder);
+                    }
+                    targetObj.wallet += penalty;
+                    saveCidadeDB(cidadeDb);
+                }
+
                 const embed = new EmbedBuilder()
                     .setTitle('🚨 Assalto Fracassado!')
-                    .setDescription(`Foste pego em flagrante tentando roubar **${targetUser.username}** e fugiste de mãos vazias!`)
+                    .setDescription(`Foste pego em flagrante tentando roubar **${targetUser.username}**! Tiveste de pagar uma penalidade de **30%** do teu dinheiro (<:moeda:1554577755121917994> **${penalty.toLocaleString()}** moedas), que foi direto para a vítima!`)
                     .setColor(0xE74C3C);
                 return await interaction.reply({ embeds: [embed] });
             }
@@ -1262,44 +1384,90 @@ client.on('interactionCreate', async interaction => {
             const targetUser = interaction.options.getUser('user');
             const arg = interaction.options.getString('quantidade').toLowerCase();
 
-            if (targetUser.id === senderId) return await interaction.reply({ content: '❌ Erro!', ephemeral: true });
+            if (targetUser.id === senderId) {
+                return await interaction.reply({ content: '❌ Não podes transferir moedas para ti próprio!', ephemeral: true });
+            }
+            if (targetUser.bot) {
+                return await interaction.reply({ content: '❌ Não podes transferir moedas para um bot!', ephemeral: true });
+            }
+
             const senderObj = ensureCidadeUser(senderId);
             const targetObj = ensureCidadeUser(targetUser.id);
 
             const totalSenderMoney = (senderObj.wallet || 0) + (senderObj.bank || 0);
-            if (totalSenderMoney <= 0) return await interaction.reply({ content: '❌ Sem saldo!', ephemeral: true });
-
-            let amountToPay = arg === 'all' ? totalSenderMoney : parseInt(arg, 10);
-            if (isNaN(amountToPay) || amountToPay <= 0 || amountToPay > totalSenderMoney) {
-                return await interaction.reply({ content: '❌ Quantia inválida.', ephemeral: true });
+            if (totalSenderMoney <= 0) {
+                return await interaction.reply({ content: '❌ Não tens saldo disponível (nem na carteira, nem no banco) para realizar uma transferência!', ephemeral: true });
             }
+
+            let amountToPay = 0;
+            if (arg === 'all') {
+                amountToPay = totalSenderMoney;
+            } else {
+                const parsed = parseInt(arg, 10);
+                if (isNaN(parsed) || parsed <= 0) {
+                    return await interaction.reply({ content: '❌ Insere um valor numérico válido ou "all".', ephemeral: true });
+                }
+                amountToPay = parsed;
+            }
+
+            if (amountToPay > totalSenderMoney) {
+                return await interaction.reply({ content: `❌ Não tens saldo suficiente! O teu património total é de <:moeda:1554577755121917994> **${totalSenderMoney.toLocaleString()}** moedas.`, ephemeral: true });
+            }
+
+            let takenFromWallet = 0;
+            let takenFromBank = 0;
 
             if (senderObj.wallet >= amountToPay) {
                 senderObj.wallet -= amountToPay;
+                takenFromWallet = amountToPay;
             } else {
-                const rem = amountToPay - senderObj.wallet;
+                takenFromWallet = senderObj.wallet;
                 senderObj.wallet = 0;
-                senderObj.bank -= rem;
+                takenFromBank = amountToPay - takenFromWallet;
+                senderObj.bank -= takenFromBank;
             }
-            targetObj.wallet += amountToPay;
+
+            targetObj.wallet = (targetObj.wallet || 0) + amountToPay;
             saveCidadeDB(cidadeDb);
 
-            return await interaction.reply({ content: `💸 Transferido com sucesso <:moeda:1554577755121917994> **${amountToPay.toLocaleString()}** para ${targetUser.username}!` });
+            const embed = new EmbedBuilder()
+                .setTitle('💸 Transferência Concluída')
+                .setDescription(`<a:verificado:1554216178111610932> **${interaction.user.username}** enviou com sucesso <:moeda:1554577755121917994> **${amountToPay.toLocaleString()}** moedas para **${targetUser.username}**!`)
+                .addFields(
+                    { name: '<:wallet:1554579680219373611> Retirado da Carteira', value: `<:moeda:1554577755121917994> ${takenFromWallet.toLocaleString()} moedas`, inline: true },
+                    { name: '🏦 Retirado do Banco', value: `<:moeda:1554577755121917994> ${takenFromBank.toLocaleString()} moedas`, inline: true }
+                )
+                .setColor(0x2ECC71)
+                .setTimestamp();
+
+            return await interaction.reply({ embeds: [embed] });
         }
     }
 
-    // --- INTERAÇÕES DE BOTÕES E MENUS ---
+    // --- INTERAÇÕES DE BOTÕES, MENUS E MODAIS ---
     if (interaction.isButton()) {
         if (interaction.customId.startsWith('resgatar_daily_')) {
             const parts = interaction.customId.split('_');
             const userId = parts[2];
             const coins = parseInt(parts[3], 10);
-            if (interaction.user.id !== userId) return await interaction.reply({ content: '❌ Botão de outro utilizador!', ephemeral: true });
+            const guildId = interaction.guildId;
+            const cooldownKey = `${guildId}_${userId}`;
 
+            if (interaction.user.id !== userId) {
+                return await interaction.reply({ content: '❌ Este botão não é para ti!', ephemeral: true });
+            }
+
+            cidadeCooldowns.daily.set(cooldownKey, Date.now());
             const userObj = ensureCidadeUser(userId);
             userObj.wallet += coins;
             saveCidadeDB(cidadeDb);
-            return await interaction.update({ content: `✅ Resgatado com sucesso! +${coins} moedas.`, embeds: [], components: [] });
+
+            await interaction.update({
+                content: `✅ Resgataste com sucesso a tua recompensa diária de <:moeda:1554577755121917994> **${coins.toLocaleString()}** moedas para a carteira!`,
+                embeds: [],
+                components: []
+            });
+            return;
         }
 
         if (interaction.customId.startsWith('cidade_prev_') || interaction.customId.startsWith('cidade_next_')) {
@@ -1309,68 +1477,933 @@ client.on('interactionCreate', async interaction => {
             const newPage = currentPage + pageChange;
 
             const players = await getRankedCidadePlayers(cidadeGuildData.users, client);
-            const payload = await buildCidadeTabelaMessage(players, newPage, cidadeGuildData.settings);
-            return await interaction.editReply(payload);
+            if (players.length === 0) {
+                return await interaction.editReply({ content: '⚠️ A tabela da cidade está vazia.', embeds: [], files: [], components: [] });
+            }
+
+            try {
+                const payload = await buildCidadeTabelaMessage(players, newPage, cidadeGuildData.settings, client);
+                return await interaction.editReply(payload);
+            } catch (err) {
+                console.error('Erro ao paginar tabela cidade:', err);
+                return await interaction.followUp({ content: '❌ Erro ao mudar de página.', ephemeral: true });
+            }
         }
 
         if (interaction.customId.startsWith('cidade_')) {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) return await interaction.reply({ content: '❌ Sem permissão.', ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return await interaction.reply({ content: '❌ Não tens permissão para usar estes botões.', ephemeral: true });
+            }
 
             if (interaction.customId === 'cidade_mudar_titulo') {
-                const modal = new ModalBuilder().setCustomId('modal_cidade_titulo').setTitle('Alterar Título da Tabela');
-                const input = new TextInputBuilder().setCustomId('input_novo_titulo').setLabel('Título').setStyle(TextInputStyle.Short).setRequired(true);
-                modal.addComponents(new ActionRowBuilder().addComponents(input));
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_cidade_titulo')
+                    .setTitle('Alterar Título da Tabela');
+
+                const inputTitulo = new TextInputBuilder()
+                    .setCustomId('input_novo_titulo')
+                    .setLabel('Novo Título da Tabela')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: CIDADE - SEASON 2')
+                    .setRequired(true)
+                    .setMaxLength(50);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(inputTitulo));
                 return await interaction.showModal(modal);
             }
 
             if (interaction.customId === 'cidade_mudar_cor') {
                 const selectCor = new StringSelectMenuBuilder()
                     .setCustomId('select_cidade_cor')
-                    .setPlaceholder('🎨 Selecione a cor...')
-                    .addOptions(Object.keys(COLOR_MAP).map(c => ({ label: c.toUpperCase(), value: c })));
-                return await interaction.reply({ content: 'Selecione a cor:', components: [new ActionRowBuilder().addComponents(selectCor)], ephemeral: true });
+                    .setPlaceholder('🎨 Selecione a cor temática...')
+                    .addOptions([
+                        { label: 'Lavanda', value: 'lavanda' },
+                        { label: 'Azul', value: 'azul' },
+                        { label: 'Dourado', value: 'dourado' },
+                        { label: 'Verde', value: 'verde' },
+                        { label: 'Cinza', value: 'cinza' },
+                        { label: 'Branco', value: 'branco' },
+                        { label: 'Rosa', value: 'rosa' },
+                        { label: 'Amarelo', value: 'amarelo' },
+                        { label: 'Ciano', value: 'ciano' }
+                    ]);
+
+                const row = new ActionRowBuilder().addComponents(selectCor);
+                return await interaction.reply({ content: 'Selecione abaixo a nova cor de fundo/detalhe da tabela:', components: [row], ephemeral: true });
             }
 
             if (interaction.customId === 'cidade_add_remover') {
-                const modal = new ModalBuilder().setCustomId('modal_cidade_moedas').setTitle('Adicionar/Remover Moedas');
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_user_id').setLabel('ID do Usuário').setStyle(TextInputStyle.Short).setRequired(true)),
-                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_qtd_moedas').setLabel('Quantidade (+ ou -)').setStyle(TextInputStyle.Short).setRequired(true))
-                );
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_cidade_moedas')
+                    .setTitle('Adicionar / Remover Moedas');
+
+                const inputUser = new TextInputBuilder()
+                    .setCustomId('input_user_id')
+                    .setLabel('ID do Usuário')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: 123456789012345678')
+                    .setRequired(true);
+
+                const inputQtd = new TextInputBuilder()
+                    .setCustomId('input_qtd_moedas')
+                    .setLabel('Quantidade (use negativo para remover)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: 5000 ou -2000')
+                    .setRequired(true);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(inputUser), new ActionRowBuilder().addComponents(inputQtd));
                 return await interaction.showModal(modal);
             }
 
             if (interaction.customId === 'cidade_resetar') {
                 cidadeGuildData.users = {};
                 saveCidadeDB(cidadeDb);
-                return await interaction.reply({ content: '🔄 Cidade resetada!', ephemeral: true });
+                return await interaction.reply({ content: '🔄 Todos os saldos da cidade foram resetados com sucesso neste servidor!', ephemeral: true });
+            }
+        }
+
+        // --- INTERAÇÕES DE PAINEL DE TICKETS ---
+        if (interaction.customId.startsWith('ticket_cfg_') || interaction.customId === 'ticket_enviar_painel') {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return await interaction.reply({ content: '❌ Não tens permissão para configurar os tickets.', ephemeral: true });
+            }
+
+            if (interaction.customId === 'ticket_cfg_texto') {
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_ticket_textos')
+                    .setTitle('Configurar Textos do Painel');
+
+                const inputTitulo = new TextInputBuilder()
+                    .setCustomId('input_ticket_titulo')
+                    .setLabel('Título do Painel')
+                    .setStyle(TextInputStyle.Short)
+                    .setValue(ticketGuildData.config.titulo)
+                    .setRequired(true);
+
+                const inputDesc = new TextInputBuilder()
+                    .setCustomId('input_ticket_desc')
+                    .setLabel('Descrição do Painel')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setValue(ticketGuildData.config.descricao)
+                    .setRequired(true);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(inputTitulo), new ActionRowBuilder().addComponents(inputDesc));
+                return await interaction.showModal(modal);
+            }
+
+            if (interaction.customId === 'ticket_cfg_cargo') {
+                const selectRole = new RoleSelectMenuBuilder()
+                    .setCustomId('select_ticket_cargo_staff')
+                    .setPlaceholder('🛡️ Selecione o cargo da Staff...')
+                    .setMinValues(1)
+                    .setMaxValues(1);
+
+                return await interaction.reply({ content: 'Selecione abaixo qual cargo terá acesso administrativo aos tickets criados:', components: [new ActionRowBuilder().addComponents(selectRole)], ephemeral: true });
+            }
+
+            if (interaction.customId === 'ticket_cfg_canal') {
+                const selectChannel = new ChannelSelectMenuBuilder()
+                    .setCustomId('select_ticket_canal_envio')
+                    .setPlaceholder('📢 Selecione o canal onde o painel será enviado...')
+                    .setChannelTypes([ChannelType.GuildText])
+                    .setMinValues(1)
+                    .setMaxValues(1);
+
+                return await interaction.reply({ content: 'Selecione abaixo o canal de texto onde o bot publicará a embed do ticket:', components: [new ActionRowBuilder().addComponents(selectChannel)], ephemeral: true });
+            }
+
+            if (interaction.customId === 'ticket_cfg_add_opcao') {
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_ticket_add_opcao')
+                    .setTitle('Adicionar Opção ao Menu');
+
+                const labelInput = new TextInputBuilder()
+                    .setCustomId('input_opcao_label')
+                    .setLabel('Nome da Opção')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: Suporte a Doações')
+                    .setRequired(true);
+
+                const descInput = new TextInputBuilder()
+                    .setCustomId('input_opcao_desc')
+                    .setLabel('Descrição curta')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: Tire dúvidas sobre doações')
+                    .setRequired(true);
+
+                const emojiInput = new TextInputBuilder()
+                    .setCustomId('input_opcao_emoji')
+                    .setLabel('Emoji (Opcional)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: 💎')
+                    .setRequired(false);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(labelInput), new ActionRowBuilder().addComponents(descInput), new ActionRowBuilder().addComponents(emojiInput));
+                return await interaction.showModal(modal);
+            }
+
+            if (interaction.customId === 'ticket_cfg_del_opcao') {
+                if (ticketGuildData.config.opcoes.length === 0) {
+                    return await interaction.reply({ content: '❌ Não existem opções cadastradas para remover.', ephemeral: true });
+                }
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('select_ticket_del_opcao')
+                    .setPlaceholder('🗑️ Selecione a opção a remover...')
+                    .addOptions(ticketGuildData.config.opcoes.map(o => ({ label: o.label, value: o.value, description: o.description })));
+
+                return await interaction.reply({ content: 'Selecione qual categoria do menu de seleção deseja apagar:', components: [new ActionRowBuilder().addComponents(selectMenu)], ephemeral: true });
+            }
+
+            if (interaction.customId === 'ticket_enviar_painel') {
+                const cfg = ticketGuildData.config;
+                if (!cfg.canalEnvio) {
+                    return await interaction.reply({ content: '❌ Define primeiro o **canal de envio** do painel!', ephemeral: true });
+                }
+
+                const channel = await interaction.guild.channels.fetch(cfg.canalEnvio).catch(() => null);
+                if (!channel) {
+                    return await interaction.reply({ content: '❌ O canal configurado não foi encontrado.', ephemeral: true });
+                }
+
+                const embedPanel = new EmbedBuilder()
+                    .setTitle(cfg.titulo)
+                    .setDescription(cfg.descricao)
+                    .setColor(0x3498DB)
+                    .setTimestamp();
+
+                if (cfg.bannerUrl) {
+                    embedPanel.setImage(cfg.bannerUrl);
+                }
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('abrir_ticket_select')
+                    .setPlaceholder('Abrir Ticket')
+                    .addOptions(cfg.opcoes.map(o => ({
+                        label: o.label,
+                        value: o.value,
+                        description: o.desc || o.description || 'Atendimento especializado',
+                        emoji: o.emoji || '🎫'
+                    })));
+
+                const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                await channel.send({ embeds: [embedPanel], components: [row] });
+                return await interaction.reply({ content: `✅ Painel em Embed de tickets enviado com sucesso para <#${cfg.canalEnvio}>!` });
+            }
+        }
+
+        // --- BOTÕES DENTRO DOS TICKETS ABERTOS ---
+        if (['ticket_fechar', 'ticket_reivindicar', 'ticket_transcript', 'ticket_excluir'].includes(interaction.customId)) {
+            const ticketId = interaction.channelId;
+            const ticketObj = ticketGuildData.ticketsAtivos[ticketId];
+
+            if (!ticketObj) {
+                return await interaction.reply({ content: '❌ Este canal não está registado como um ticket ativo válido.', ephemeral: true });
+            }
+
+            const staffRoleId = ticketGuildData.config.cargoStaff;
+            const isStaff = staffRoleId && interaction.member.roles.cache.has(staffRoleId);
+            const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+            const isOwner = interaction.user.id === ticketObj.userId;
+
+            if (interaction.customId === 'ticket_fechar') {
+                if (!isStaff && !isAdmin && !isOwner) {
+                    return await interaction.reply({ content: '❌ Não tens permissão para fechar este ticket!', ephemeral: true });
+                }
+
+                await interaction.reply({ content: '🔒 Ticket fechado! A eliminar canal em 5 segundos...' });
+                delete ticketGuildData.ticketsAtivos[ticketId];
+                saveTicketDB(ticketDb);
+
+                setTimeout(async () => {
+                    await interaction.channel.delete().catch(() => {});
+                }, 5000);
+                return;
+            }
+
+            if (interaction.customId === 'ticket_reivindicar') {
+                if (!isStaff && !isAdmin) {
+                    return await interaction.reply({ content: '❌ Apenas membros da Staff podem reivindicar tickets!', ephemeral: true });
+                }
+
+                ticketObj.claimedBy = interaction.user.id;
+                saveTicketDB(ticketDb);
+
+                const embedClaim = new EmbedBuilder()
+                    .setTitle('🛡️ Ticket Reivindicado')
+                    .setDescription(`Este atendimento foi assumido por ${interaction.user}.`)
+                    .setColor(0x2ECC71);
+
+                return await interaction.reply({ embeds: [embedClaim] });
+            }
+
+            if (interaction.customId === 'ticket_transcript') {
+                if (!isStaff && !isAdmin) {
+                    return await interaction.reply({ content: '❌ Apenas membros da Staff podem gerar transcripts!', ephemeral: true });
+                }
+
+                await interaction.deferReply({ ephemeral: true });
+                try {
+                    const messages = await interaction.channel.messages.fetch({ limit: 100 });
+                    const sorted = Array.from(messages.values()).reverse();
+                    let textLog = `=== TRANSCRIPT DO TICKET: ${interaction.channel.name} ===\n\n`;
+                    for (const m of sorted) {
+                        textLog += `[${new Date(m.createdTimestamp).toLocaleString()}] ${m.author.tag}:${m.content}\n`;
+                    }
+
+                    const buffer = Buffer.from(textLog, 'utf-8');
+                    const attachment = new AttachmentBuilder(buffer, { name: `transcript-${interaction.channel.name}.txt` });
+
+                    return await interaction.editReply({ content: '📄 Transcript gerado com sucesso:', files: [attachment] });
+                } catch (e) {
+                    return await interaction.editReply({ content: '❌ Erro ao gerar o transcript.' });
+                }
+            }
+
+            if (interaction.customId === 'ticket_excluir') {
+                if (!isStaff && !isAdmin) {
+                    return await interaction.reply({ content: '❌ Apenas membros da Staff podem excluir tickets instantaneamente!', ephemeral: true });
+                }
+
+                await interaction.reply({ content: '🗑️ A apagar ticket imediatamente...' });
+                delete ticketGuildData.ticketsAtivos[ticketId];
+                saveTicketDB(ticketDb);
+                setTimeout(async () => { await interaction.channel.delete().catch(() => {}); }, 2000);
+                return;
             }
         }
     }
 
-    if (interaction.isStringSelectMenu() && interaction.customId === 'select_cidade_cor') {
-        cidadeGuildData.settings.tabelaCor = interaction.values[0];
-        saveCidadeDB(cidadeDb);
-        return await interaction.update({ content: `✅ Cor alterada para **${interaction.values[0]}**!`, components: [] });
+    // --- SELEÇÃO DO MENU DE TICKETS (CRIAR TICKET) ---
+    if (interaction.isStringSelectMenu() && interaction.customId === 'abrir_ticket_select') {
+        await interaction.deferReply({ ephemeral: true });
+        const selectedValue = interaction.values[0];
+        const cfg = ticketGuildData.config;
+        const guild = interaction.guild;
+
+        let category = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name.toLowerCase() === 'tickets abertos');
+        if (!category) {
+            try {
+                category = await guild.channels.create({
+                    name: 'TICKETS ABERTOS',
+                    type: ChannelType.GuildCategory
+                });
+            } catch (e) {
+                return await interaction.editReply({ content: '❌ Erro ao criar a categoria "TICKETS ABERTOS". Verifique as permissões do bot.' });
+            }
+        }
+
+        const staffRoleId = cfg.cargoStaff;
+        const permissionOverwrites = [
+            {
+                id: guild.id,
+                deny: [PermissionFlagsBits.ViewChannel]
+            },
+            {
+                id: interaction.user.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+            }
+        ];
+
+        if (staffRoleId) {
+            permissionOverwrites.push({
+                id: staffRoleId,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+            });
+        }
+
+        try {
+            const ticketChannel = await guild.channels.create({
+                name: `ticket-${interaction.user.username.slice(0, 10)}`,
+                type: ChannelType.GuildText,
+                parent: category.id,
+                permissionOverwrites: permissionOverwrites
+            });
+
+            ticketGuildData.ticketsAtivos[ticketChannel.id] = {
+                userId: interaction.user.id,
+                category: selectedValue,
+                claimedBy: null
+            };
+            saveTicketDB(ticketDb);
+
+            const staffMention = staffRoleId ? `<@&${staffRoleId}>` : '`Staff`';
+            const embedTicket = new EmbedBuilder()
+                .setTitle('🎫 Atendimento Iniciado')
+                .setDescription(
+                    `Olá ${interaction.user}, bem-vindo ao seu ticket!\n` +
+                    `Categoria selecionada: **${selectedValue}**\n\n` +
+                    `Um membro da equipe ${staffMention} irá atendê-lo em breve.`
+                )
+                .setColor(0x3498DB)
+                .setTimestamp();
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('ticket_fechar').setLabel('Fechar Ticket').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
+                new ButtonBuilder().setCustomId('ticket_reivindicar').setLabel('Reivindicar').setStyle(ButtonStyle.Success).setEmoji('🛡️'),
+                new ButtonBuilder().setCustomId('ticket_transcript').setLabel('Transcript').setStyle(ButtonStyle.Secondary).setEmoji('📄'),
+                new ButtonBuilder().setCustomId('ticket_excluir').setLabel('Excluir').setStyle(ButtonStyle.Danger).setEmoji('🗑️')
+            );
+
+            await ticketChannel.send({
+                content: `${interaction.user}${staffRoleId ? `<@&${staffRoleId}>` : ''}`,
+                embeds: [embedTicket],
+                components: [row]
+            });
+
+            return await interaction.editReply({ content: `✅ O seu ticket foi criado com sucesso em ${ticketChannel}!` });
+        } catch (e) {
+            console.error(e);
+            return await interaction.editReply({ content: '❌ Erro ao criar o canal do ticket.' });
+        }
     }
 
+    // --- SELECT MENUS DE CONFIGURAÇÃO DE TICKETS ---
+    if (interaction.isRoleSelectMenu() && interaction.customId === 'select_ticket_cargo_staff') {
+        ticketGuildData.config.cargoStaff = interaction.values[0];
+        saveTicketDB(ticketDb);
+        return await interaction.update({ content: `✅ Cargo da Staff configurado para <@&${interaction.values[0]}>!`, components: [] });
+    }
+
+    if (interaction.isChannelSelectMenu() && interaction.customId === 'select_ticket_canal_envio') {
+        ticketGuildData.config.canalEnvio = interaction.values[0];
+        saveTicketDB(ticketDb);
+        return await interaction.update({ content: `✅ Canal de envio do painel configurado para <#${interaction.values[0]}>!`, components: [] });
+    }
+
+    if (interaction.isStringSelectMenu() && interaction.customId === 'select_ticket_del_opcao') {
+        const val = interaction.values[0];
+        ticketGuildData.config.opcoes = ticketGuildData.config.opcoes.filter(o => o.value !== val);
+        saveTicketDB(ticketDb);
+        return await interaction.update({ content: `✅ Opção \`${val}\` removida com sucesso do menu de tickets!`, components: [] });
+    }
+
+    // --- MODAIS DE TICKETS ---
     if (interaction.isModalSubmit()) {
-        if (interaction.customId === 'modal_cidade_titulo') {
-            cidadeGuildData.settings.tabelaNome = interaction.fields.getTextInputValue('input_novo_titulo');
-            saveCidadeDB(cidadeDb);
-            return await interaction.reply({ content: '✅ Título atualizado!', ephemeral: true });
+        if (interaction.customId === 'modal_ticket_textos') {
+            const titulo = interaction.fields.getTextInputValue('input_ticket_titulo');
+            const desc = interaction.fields.getTextInputValue('input_ticket_desc');
+
+            ticketGuildData.config.titulo = titulo;
+            ticketGuildData.config.descricao = desc;
+            saveTicketDB(ticketDb);
+
+            return await interaction.reply({ content: '✅ Textos do painel de tickets atualizados com sucesso!' });
         }
-        if (interaction.customId === 'modal_cidade_moedas') {
-            const uid = interaction.fields.getTextInputValue('input_user_id');
-            const qtd = parseInt(interaction.fields.getTextInputValue('input_qtd_moedas'), 10);
-            const uObj = ensureCidadeUser(uid);
-            uObj.bank = Math.max(0, uObj.bank + qtd);
-            saveCidadeDB(cidadeDb);
-            return await interaction.reply({ content: `✅ Saldo atualizado com sucesso! Novo banco: ${uObj.bank}`, ephemeral: true });
+
+        if (interaction.customId === 'modal_ticket_add_opcao') {
+            const label = interaction.fields.getTextInputValue('input_opcao_label');
+            const desc = interaction.fields.getTextInputValue('input_opcao_desc');
+            const emoji = interaction.fields.getTextInputValue('input_opcao_emoji') || '🎫';
+            const value = label.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+            ticketGuildData.config.opcoes.push({ label, value, desc, emoji });
+            saveTicketDB(ticketDb);
+
+            return await interaction.reply({ content: `✅ Opção **${label}** adicionada com sucesso ao menu de seleção!` });
         }
     }
 
-    // (Mantém todo o restante do código original de 1v1 e tickets para preservar o seu projeto intacto)
+    // --- INTERAÇÕES DE PAINEL 1V1 ---
+    if (interaction.isButton() && interaction.customId.startsWith('painel_')) {
+        if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return await interaction.reply({ content: '❌ Não tens permissão para usar estes botões.', ephemeral: true });
+        }
+
+        if (interaction.customId === 'painel_mudar_titulo') {
+            const modal = new ModalBuilder()
+                .setCustomId('modal_mudar_titulo')
+                .setTitle('Alterar Título da Liga');
+
+            const inputTitulo = new TextInputBuilder()
+                .setCustomId('input_novo_titulo')
+                .setLabel('Novo Nome / Título da Liga')
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('Ex: SFC 1V1 - SEASON 2')
+                .setRequired(true)
+                .setMaxLength(50);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(inputTitulo));
+            return await interaction.showModal(modal);
+        }
+
+        if (interaction.customId === 'painel_mudar_cor') {
+            const selectCor = new StringSelectMenuBuilder()
+                .setCustomId('select_cor_tabela')
+                .setPlaceholder('🎨 Selecione a cor de fundo/detalhe...')
+                .addOptions([
+                    { label: 'Lavanda', value: 'lavanda', description: 'Tom roxo suave' },
+                    { label: 'Azul', value: 'azul', description: 'Azul clássico' },
+                    { label: 'Dourado', value: 'dourado', description: 'Amarelo dourado premium' },
+                    { label: 'Verde', value: 'verde', description: 'Verde esmeralda' },
+                    { label: 'Cinza', value: 'cinza', description: 'Cinza escuro elegante' },
+                    { label: 'Branco', value: 'branco', description: 'Branco claro' },
+                    { label: 'Rosa', value: 'rosa', description: 'Rosa vibrante' },
+                    { label: 'Amarelo', value: 'amarelo', description: 'Amarelo vivo' },
+                    { label: 'Ciano', value: 'ciano', description: 'Azul ciano brilhante' }
+                ]);
+
+            const row = new ActionRowBuilder().addComponents(selectCor);
+            return await interaction.reply({ content: 'Selecione abaixo a nova cor de fundo para o painel e tabela:', components: [row], ephemeral: true });
+        }
+
+        if (interaction.customId === 'painel_config_cargos') {
+            const selectRoleProcurando = new RoleSelectMenuBuilder()
+                .setCustomId('role_select_procurando')
+                .setPlaceholder('🛡️ Selecione o cargo de Ping para Desafios...')
+                .setMinValues(1)
+                .setMaxValues(1);
+
+            const selectRoleTop1 = new RoleSelectMenuBuilder()
+                .setCustomId('role_select_top1')
+                .setPlaceholder('🥇 Selecione o cargo de Top 1...')
+                .setMinValues(1)
+                .setMaxValues(1);
+
+            const selectRoleTop2 = new RoleSelectMenuBuilder()
+                .setCustomId('role_select_top2')
+                .setPlaceholder('🥈 Selecione o cargo de Top 2...')
+                .setMinValues(1)
+                .setMaxValues(1);
+
+            const selectRoleTop3 = new RoleSelectMenuBuilder()
+                .setCustomId('role_select_top3')
+                .setPlaceholder('🥉 Selecione o cargo de Top 3...')
+                .setMinValues(1)
+                .setMaxValues(1);
+
+            return await interaction.reply({ 
+                content: 'Selecione abaixo os cargos que o bot deve atribuir e controlar automaticamente:', 
+                components: [
+                    new ActionRowBuilder().addComponents(selectRoleProcurando),
+                    new ActionRowBuilder().addComponents(selectRoleTop1),
+                    new ActionRowBuilder().addComponents(selectRoleTop2),
+                    new ActionRowBuilder().addComponents(selectRoleTop3)
+                ], 
+                ephemeral: true 
+            });
+        }
+
+        if (interaction.customId === 'painel_nova_liga') {
+            const modal = new ModalBuilder()
+                .setCustomId('modal_nova_liga')
+                .setTitle('Criar Nova Liga');
+
+            const inputNome = new TextInputBuilder()
+                .setCustomId('input_nome_nova_liga')
+                .setLabel('Nome da Nova Liga')
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('Ex: SFC 1V1 - SEASON 2')
+                .setRequired(true)
+                .setMaxLength(50);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(inputNome));
+            return await interaction.showModal(modal);
+        }
+    }
+
+    // --- SELECT MENUS ---
+    if (interaction.isRoleSelectMenu()) {
+        if (interaction.customId === 'role_select_procurando') {
+            guildData.settings.cargoProcurando = interaction.values[0];
+            saveDB(db);
+            return await interaction.update({ content: `✅ Cargo de ping atualizado para <@&${interaction.values[0]}>!`, components: [] });
+        }
+        if (interaction.customId === 'role_select_top1') {
+            guildData.settings.cargoTop1 = interaction.values[0];
+            saveDB(db);
+            await atualizarCargosPodio(interaction.guild, guildData);
+            return await interaction.update({ content: `✅ Cargo de Top 1 atualizado para <@&${interaction.values[0]}>!`, components: [] });
+        }
+        if (interaction.customId === 'role_select_top2') {
+            guildData.settings.cargoTop2 = interaction.values[0];
+            saveDB(db);
+            await atualizarCargosPodio(interaction.guild, guildData);
+            return await interaction.update({ content: `✅ Cargo de Top 2 atualizado para <@&${interaction.values[0]}>!`, components: [] });
+        }
+        if (interaction.customId === 'role_select_top3') {
+            guildData.settings.cargoTop3 = interaction.values[0];
+            saveDB(db);
+            await atualizarCargosPodio(interaction.guild, guildData);
+            return await interaction.update({ content: `✅ Cargo de Top 3 atualizado para <@&${interaction.values[0]}>!`, components: [] });
+        }
+    }
+
+    if (interaction.isStringSelectMenu() && interaction.customId === 'select_cor_tabela') {
+        const novaCor = interaction.values[0];
+        guildData.settings.ligaCor = novaCor;
+        saveDB(db);
+        return await interaction.update({ content: `✅ Cor de fundo da tabela alterada para **${novaCor.toUpperCase()}**!`, components: [] });
+    }
+
+    if (interaction.isStringSelectMenu() && interaction.customId === 'select_cidade_cor') {
+        const novaCor = interaction.values[0];
+        cidadeGuildData.settings.tabelaCor = novaCor;
+        saveCidadeDB(cidadeDb);
+        return await interaction.update({ content: `✅ Cor temática da cidade alterada para **${novaCor.toUpperCase()}**!`, components: [] });
+    }
+
+    // --- MODAIS ---
+    if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'modal_mudar_titulo') {
+            const novoTitulo = interaction.fields.getTextInputValue('input_novo_titulo');
+            guildData.settings.ligaNome = novoTitulo;
+            saveDB(db);
+            return await interaction.reply({ content: `✅ Título da liga atualizado para: \`${novoTitulo}\``, ephemeral: true });
+        }
+
+        if (interaction.customId === 'modal_nova_liga') {
+            const novoNome = interaction.fields.getTextInputValue('input_nome_nova_liga');
+            guildData.players = {};
+            guildData.settings.ligaNome = novoNome;
+            saveDB(db);
+            await atualizarCargosPodio(interaction.guild, guildData);
+            return await interaction.reply({ content: `🚨 **Nova liga criada!** Nome: \`${novoNome}\``, ephemeral: true });
+        }
+
+        if (interaction.customId === 'modal_cidade_titulo') {
+            const novoTitulo = interaction.fields.getTextInputValue('input_novo_titulo');
+            cidadeGuildData.settings.tabelaNome = novoTitulo;
+            saveCidadeDB(cidadeDb);
+            return await interaction.reply({ content: `✅ Título da tabela da cidade atualizado para: \`${novoTitulo}\``, ephemeral: true });
+        }
+
+        if (interaction.customId === 'modal_cidade_moedas') {
+            const targetId = interaction.fields.getTextInputValue('input_user_id').trim();
+            const qtdStr = interaction.fields.getTextInputValue('input_qtd_moedas').trim();
+            const qtd = parseInt(qtdStr, 10);
+
+            if (isNaN(qtd)) {
+                return await interaction.reply({ content: '❌ A quantidade inserida é inválida.', ephemeral: true });
+            }
+
+            const userObj = ensureCidadeUser(targetId);
+            userObj.bank += qtd;
+            if (userObj.bank < 0) userObj.bank = 0;
+            saveCidadeDB(cidadeDb);
+
+            return await interaction.reply({ content: `✅ Saldo atualizado com sucesso neste servidor! Novo saldo no banco: <:moeda:1554577755121917994> **${userObj.bank.toLocaleString()} moedas**.`, ephemeral: true });
+        }
+    }
+
+    // --- OUTRAS INTERAÇÕES 1V1 (Mapas, Desafios, Resultados) ---
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('escolher_mapa_')) {
+        const parts = interaction.customId.split('_');
+        const challengerId = parts[2];
+        const targetId = parts[3];
+        const mapa = interaction.values[0];
+
+        if (interaction.user.id !== challengerId) {
+            return await interaction.reply({ content: '❌ Apenas quem criou o desafio pode escolher o mapa!', ephemeral: true });
+        }
+
+        let targetUserObj = null;
+        if (targetId !== 'aleatorio') {
+            targetUserObj = await client.users.fetch(targetId).catch(() => null);
+        }
+
+        const titleStatus = targetUserObj 
+            ? `<a:carregando:1554216030128177152> AGUARDANDO ${targetUserObj.username.toUpperCase()} ACEITAR DESAFIO` 
+            : `<a:carregando:1554216030128177152> AGUARDANDO ALGUM MEMBRO ACEITAR`;
+
+        const embed = new EmbedBuilder()
+            .setTitle(titleStatus)
+            .setDescription('Um combate foi criado. Clica no botão abaixo para aceitar o duelo!')
+            .setColor(0xFF4500)
+            .setThumbnail((await client.users.fetch(challengerId).catch(() => null))?.displayAvatarURL({ extension: 'png' }))
+            .addFields(
+                { name: '<:caveira:1554217228671516837> Desafiante', value: `${interaction.user}`, inline: true },
+                { name: '<:imprevisivel:1554217366823633048> Adversário', value: targetId !== 'aleatorio' ? `${targetUserObj}` : '`Aberto a qualquer um`', inline: true },
+                { name: '🗺 Mapa', value: `\`${mapa}\``, inline: false },
+                { name: '<:analise:1554217532435595505> Regras', value: '• Vitória: **+32 pts** | Derrota: **-32 pts** | Empate: **+10 pts**', inline: false }
+            );
+
+        const btnAccept = new ButtonBuilder()
+            .setCustomId(`aceitar_desafio_${challengerId}_${targetId}_${encodeURIComponent(mapa)}`)
+            .setLabel('Aceitar Desafio')
+            .setEmoji('1551829027801800714') 
+            .setStyle(ButtonStyle.Success);
+
+        const row = new ActionRowBuilder().addComponents(btnAccept);
+        const cargoPing = guildData.settings.cargoProcurando;
+        const content = cargoPing ? `<@&${cargoPing}>` : '';
+
+        await interaction.channel.send({ content, embeds: [embed], components: [row] });
+        await interaction.update({ content: '✅ Desafio publicado com sucesso no canal!', embeds: [], components: [] });
+    }
+
+    if (interaction.isButton() && (interaction.customId.startsWith('tabela_prev_') || interaction.customId.startsWith('tabela_next_'))) {
+        await interaction.deferUpdate();
+        const pageChange = interaction.customId.startsWith('tabela_next_') ? 1 : -1;
+        const currentPage = parseInt(interaction.customId.split('_').pop(), 10);
+        const newPage = currentPage + pageChange;
+
+        const players = await getRankedPlayers(guildData.players, client);
+        if (players.length === 0) {
+            return await interaction.editReply({ content: '⚠️ A tabela está vazia agora.', embeds: [], files: [], components: [] });
+        }
+
+        try {
+            const payload = await buildTabelaMessage(players, newPage, guildData.settings);
+            return await interaction.editReply(payload);
+        } catch (err) {
+            console.error('Erro ao paginar tabela:', err);
+            return await interaction.followUp({ content: '❌ Erro ao mudar de página.', ephemeral: true });
+        }
+    }
+
+    if (interaction.isButton() && interaction.customId.startsWith('aceitar_desafio_')) {
+        const parts = interaction.customId.split('_');
+        const challengerId = parts[2];
+        const targetId = parts[3];
+        const mapa = decodeURIComponent(parts[4]);
+
+        if (interaction.user.id === challengerId) {
+            return await interaction.reply({ content: '❌ Não podes aceitar o teu próprio desafio!', ephemeral: true });
+        }
+        if (targetId !== 'aleatorio' && interaction.user.id !== targetId) {
+            return await interaction.reply({ content: '❌ Este desafio foi direcionado para outro jogador!', ephemeral: true });
+        }
+
+        try {
+            const thread = await interaction.message.startThread({
+                name: `1v1-${interaction.user.username}`,
+                autoArchiveDuration: 60,
+                type: ChannelType.PublicThread,
+                reason: 'Partida 1v1'
+            });
+
+            const embedThread = new EmbedBuilder()
+                .setTitle('⚔️ SALA DE CONFRONTO 1v1')
+                .setDescription(
+                    `**Participantes:** <@${challengerId}> ⚔️ <@${interaction.user.id}>\n` +
+                    `**Mapa:** \`${mapa}\`\n\n` +
+                    `### 📌 Regras e Instruções do Tópico:\n` +
+                    `1. **Envie o link do servidor privado** aqui no tópico para irem para o 1v1.\n` +
+                    `2. Ambos os participantes podem enviar mensagens livremente.\n` +
+                    `3. Joguem a partida no mapa indicado.\n` +
+                    `4. Após o jogo, **ambos** devem selecionar o resultado exato no menu abaixo.\n` +
+                    `⚠️ *Nota: O cancelamento exige que ambos cliquem no botão de cancelar.*`
+                )
+                .setColor(0x00FF99);
+
+            const selectMenuResult = new StringSelectMenuBuilder()
+                .setCustomId(`resultado_1v1_${challengerId}_${interaction.user.id}`)
+                .setPlaceholder('Selecione o resultado exato do confronto...')
+                .addOptions([
+                    { label: 'Desafiante (1-0)', value: 'desafiante_1_0' },
+                    { label: 'Adversário (1-0)', value: 'adversario_1_0' },
+                    { label: 'Desafiante (2-1)', value: 'desafiante_2_1' },
+                    { label: 'Desafiante (2-0)', value: 'desafiante_2_0' },
+                    { label: 'Adversário (2-1)', value: 'adversario_2_1' },
+                    { label: 'Adversário (2-0)', value: 'adversario_2_0' },
+                    { label: 'Empate Ambos', value: 'empate' }
+                ]);
+
+            const btnCancel = new ButtonBuilder()
+                .setCustomId(`cancelar_desafio_${challengerId}_${interaction.user.id}`)
+                .setLabel('❌ Cancelar Desafio (0/2)')
+                .setStyle(ButtonStyle.Danger);
+
+            const rowResult = new ActionRowBuilder().addComponents(selectMenuResult);
+            const rowCancel = new ActionRowBuilder().addComponents(btnCancel);
+
+            await thread.send({ 
+                content: `⚔️ <@${challengerId}> e <@${interaction.user.id}> o vosso tópico foi criado!`, 
+                embeds: [embedThread], 
+                components: [rowResult, rowCancel] 
+            });
+
+            const originalEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                .setTitle('<a:carregando:1554216030128177152> Desafio em andamento')
+                .setColor(0xF1C40F);
+
+            const fields = originalEmbed.data.fields;
+            if (fields && fields[1]) {
+                fields[1].value = `<@${interaction.user.id}>`;
+            }
+
+            await interaction.update({ embeds: [originalEmbed], components: [] });
+
+            const timeoutHandle = setTimeout(async () => {
+                try {
+                    const fetchedChannel = await client.channels.fetch(thread.id).catch(() => null);
+                    if (fetchedChannel) {
+                        await fetchedChannel.send('⚠️ O tempo limite de 2 horas expirou. O desafio foi cancelado automaticamente.');
+                        setTimeout(async () => { try { await fetchedChannel.delete(); } catch (e) {} }, 5000);
+                    }
+                    const starterMessage = await interaction.channel.messages.fetch(interaction.message.id).catch(() => null);
+                    if (starterMessage) await starterMessage.delete().catch(() => {});
+                } catch (e) {}
+            }, 2 * 60 * 60 * 1000);
+
+            interaction.client.matchTimeouts = interaction.client.matchTimeouts || new Map();
+            interaction.client.matchTimeouts.set(thread.id, timeoutHandle);
+
+        } catch (err) {
+            console.error(err);
+            return await interaction.reply({ content: '❌ Erro ao criar o tópico.', ephemeral: true });
+        }
+    }
+
+    if (interaction.isButton() && interaction.customId.startsWith('cancelar_desafio_')) {
+        const parts = interaction.customId.split('_');
+        const challengerId = parts[2];
+        const acceptorId = parts[3];
+
+        if (interaction.user.id !== challengerId && interaction.user.id !== acceptorId) {
+            return await interaction.reply({ content: '❌ Apenas os participantes podem cancelar o desafio!', ephemeral: true });
+        }
+
+        interaction.client.cancelVotes = interaction.client.cancelVotes || new Map();
+        let cancelSet = interaction.client.cancelVotes.get(interaction.channelId) || new Set();
+        cancelSet.add(interaction.user.id);
+        interaction.client.cancelVotes.set(interaction.channelId, cancelSet);
+
+        const count = cancelSet.size;
+
+        if (count < 2) {
+            try {
+                const actionRows = interaction.message.components;
+                for (let r of actionRows) {
+                    for (let comp of r.components) {
+                        if (comp.customId && comp.customId.startsWith('cancelar_desafio_')) {
+                            comp.data.label = `❌ Cancelar Desafio (${count}/2)`;
+                        }
+                    }
+                }
+                await interaction.update({ components: actionRows });
+            } catch (e) {}
+
+            return await interaction.followUp({ content: `⚠️ <@${interaction.user.id}> votou para cancelar. Falta o voto do outro participante (**${count}/2**).` });
+        } else {
+            if (interaction.client.matchTimeouts?.has(interaction.channelId)) {
+                clearTimeout(interaction.client.matchTimeouts.get(interaction.channelId));
+                interaction.client.matchTimeouts.delete(interaction.channelId);
+            }
+            interaction.client.cancelVotes.delete(interaction.channelId);
+
+            try {
+                const starterMessage = await interaction.channel.fetchStarterMessage().catch(() => null);
+                if (starterMessage) await starterMessage.delete().catch(() => {});
+            } catch (e) {}
+
+            const embedCancel = new EmbedBuilder()
+                .setTitle('❌ DESAFIO CANCELADO')
+                .setDescription(`Ambos os participantes concordaram em cancelar o confronto. Este canal será eliminado em 5 segundos.`)
+                .setColor(0xFF0000);
+
+            await interaction.update({ content: '', embeds: [embedCancel], components: [] });
+            setTimeout(async () => { try { await interaction.channel.delete(); } catch (e) {} }, 5000);
+        }
+    }
+
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('resultado_1v1_')) {
+        const parts = interaction.customId.split('_');
+        const challengerId = parts[2];
+        const acceptorId = parts[3];
+
+        if (interaction.user.id !== challengerId && interaction.user.id !== acceptorId) {
+            return await interaction.reply({ content: '❌ Apenas os participantes podem votar!', ephemeral: true });
+        }
+
+        interaction.client.pendingResults = interaction.client.pendingResults || new Map();
+        let matchVotes = interaction.client.pendingResults.get(interaction.channelId) || {};
+        matchVotes[interaction.user.id] = interaction.values[0];
+        interaction.client.pendingResults.set(interaction.channelId, matchVotes);
+
+        await interaction.reply({ content: `✅ Voto registado com sucesso. A aguardar o adversário...`, ephemeral: true });
+
+        if (matchVotes[challengerId] && matchVotes[acceptorId]) {
+            if (matchVotes[challengerId] !== matchVotes[acceptorId]) {
+                await interaction.channel.send('⚠️ Os votos não coincidem! Dialoguem e votem novamente.');
+                interaction.client.pendingResults.delete(interaction.channelId);
+                return;
+            }
+
+            if (interaction.client.matchTimeouts?.has(interaction.channelId)) {
+                clearTimeout(interaction.client.matchTimeouts.get(interaction.channelId));
+                interaction.client.matchTimeouts.delete(interaction.channelId);
+            }
+
+            const result = matchVotes[challengerId];
+            let winnerId = null, loserId = null, isDraw = false;
+            let scoreText = '';
+
+            if (result.startsWith('desafiante_')) {
+                winnerId = challengerId;
+                loserId = acceptorId;
+                if (result === 'desafiante_1_0') scoreText = '1-0';
+                if (result === 'desafiante_2_1') scoreText = '2-1';
+                if (result === 'desafiante_2_0') scoreText = '2-0';
+            } else if (result.startsWith('adversario_')) {
+                winnerId = acceptorId;
+                loserId = challengerId;
+                if (result === 'adversario_1_0') scoreText = '1-0';
+                if (result === 'adversario_2_1') scoreText = '2-1';
+                if (result === 'adversario_2_0') scoreText = '2-0';
+            } else if (result === 'empate') {
+                isDraw = true;
+            }
+
+            if (!guildData.players[challengerId]) guildData.players[challengerId] = { userId: challengerId, points: 0, wins: 0, draws: 0, losses: 0 };
+            if (!guildData.players[acceptorId]) guildData.players[acceptorId] = { userId: acceptorId, points: 0, wins: 0, draws: 0, losses: 0 };
+
+            if (isDraw) {
+                guildData.players[challengerId].points += 10;
+                guildData.players[challengerId].draws += 1;
+                guildData.players[acceptorId].points += 10;
+                guildData.players[acceptorId].draws += 1;
+            } else {
+                guildData.players[winnerId].points += 32;
+                guildData.players[winnerId].wins += 1;
+                guildData.players[loserId].points -= 32;
+                guildData.players[loserId].losses += 1;
+            }
+
+            saveDB(db);
+            await atualizarCargosPodio(interaction.guild, guildData);
+            interaction.client.pendingResults.delete(interaction.channelId);
+
+            let winnerUserObj = null;
+            if (!isDraw) {
+                winnerUserObj = await client.users.fetch(winnerId).catch(() => null);
+            }
+
+            const textResult = isDraw 
+                ? '<a:verificado:1554216178111610932> Desafio finalizado ambos empataram' 
+                : `<a:verificado:1554216178111610932> Desafio finalizado o vencedor foi ${winnerUserObj ? winnerUserObj.username : 'Desconhecido'}`;
+
+            try {
+                const starterMessage = await interaction.channel.fetchStarterMessage().catch(() => null);
+                if (starterMessage) {
+                    const parentChannel = starterMessage.channel;
+                    await starterMessage.delete().catch(() => {});
+
+                    const finalEmbed = new EmbedBuilder()
+                        .setTitle(textResult)
+                        .setColor(0x00FF00)
+                        .addFields(
+                            { name: '<:caveira:1554217228671516837> Desafiante', value: `<@${challengerId}>`, inline: true },
+                            { name: '<:imprevisivel:1554217366823633048> Adversário', value: `<@${acceptorId}>`, inline: true },
+                            { name: '📊 Placar', value: `\`${isDraw ? 'Empate' : scoreText}\``, inline: false }
+                        )
+                        .setTimestamp();
+
+                    await parentChannel.send({ embeds: [finalEmbed] });
+                }
+            } catch (e) {}
+
+            const embedFinal = new EmbedBuilder()
+                .setTitle('<:tro:1554226308224131184>  CONFRONTO CONCLUÍDO!')
+                .setDescription(`${textResult} (${isDraw ? 'Empate' : 'Placar: ' + scoreText})`)
+                .setColor(0x00FF00);
+
+            await interaction.channel.send({ embeds: [embedFinal] });
+            setTimeout(async () => { try { await interaction.channel.delete(); } catch (e) {} }, 5000);
+        }
+    }
 });
 
 client.login(TOKEN);
